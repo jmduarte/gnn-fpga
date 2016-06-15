@@ -17,21 +17,22 @@ class BatchData:
             tmp = json_data['xAOD::Type::TrackParticle']['InDetTrackParticles']['Trk '+ str(ii)]['pos']
             data.append(tmp)
             
-        self.data = np.array(data)
 
         #identify the various sequence lengths
         #####HARDCODE######
         hist_vals, bin_edge = np.histogram(layers,np.arange(11,23))
         self.hist_vals = hist_vals
         self.bin_edge = bin_edge
+        #Dictionary empty init
+        X = {}
         #For each layer length
         for ii in np.arange(11,23):
             #Find the samples that have this length
-
+            idx = np.where(layers==ii)
+            X[str(ii)] = {}
             #Store them in a dictionary
+            for jj in range(len(idx)):
+                X[str[ii][jj] = json_data['xAOD::Type::TrackParticle']['InDetTrackParticles']['Trk '+ str(idx[jj])]['pos']
 
-        #Create a nested dictionary that then stores the data
-
-        #Populate object
-
+        self.data = X
         return
