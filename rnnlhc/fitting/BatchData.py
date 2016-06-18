@@ -44,9 +44,10 @@ class BatchData:
 
     #Accepts the batch size as an argument and returns 
     #batch sized data for a specific trajectory length
-    def sample_batch(self,batch_size=20):
-        #Choose a key from keys randomly
-        rand_int = np.random.randint(12,20)
+    def sample_batch(self,rand_int=None,batch_size=20):
+        if rand_int is None:
+            #Choose a key from keys randomly
+            rand_int = np.random.randint(12,20)
         #Choose indices randomly 
         idx = np.random.randint(0,len(self.data[str(rand_int)]),batch_size)
         #Init zeros
