@@ -56,5 +56,5 @@ class BatchData:
             data[:,:,ii] = np.array(self.data[str(rand_int)][idx[ii]])
         #Return as numpy array
 
-        return data
+        return data,rand_int
 

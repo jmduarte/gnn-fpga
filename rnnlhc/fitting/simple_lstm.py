@@ -12,101 +12,52 @@ Mayur Mudigonda, June 2016
 class RNNLHC(object):
     """ The RNN LHC Model with just simple number of hidden weights """
     def __init__(self,is_training,config):
-       self.batch_size = batch_size = config.batch_size
-       self.num_steps = num_steps = config.num_steps
-       size = config.hidden_size
-       vocab_size = config.vocab_size
+       #Reset Default Graph
+       tf.reset_default_graph()
 
-       self._input_data = tf.placeholder(tf.int32, [batch_size, num_steps])
-       self._targets = tf.placeholder(tf.int32, [batch_size, num_steps])
+       #None for batch size, Max Num Steps, 3
+       self.input_data = tf.placeholder(tf.float32, [None, config.MaxNumSteps, 3])
+       self.targets = tf.placeholder(tf.float32, [None, config.MaxNumSteps,3])
+       #self.input_data_split = tf.split(0,self.in
 
-       # Slightly better results can be obtained with forget gate biases
-       # initialized to 1 but the hyperparameters of the model would need to be
-       # different than reported in the paper.
-       lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(size, forget_bias=0.0)
-       if is_training and config.keep_prob < 1:
-           lstm_cell = tf.nn.rnn_cell.DropoutWrapper(
-              lstm_cell, output_keep_prob=config.keep_prob)
-       cell = tf.nn.rnn_cell.MultiRNNCell([lstm_cell] * config.num_layers)
+       #Weights and biases
+       w = tf.get_variable("matrix_w",[config.hidden_size,config.feat_dims])
+       b = tf.get_variable("matrix_b",[config.feat_dims])
 
-       self._initial_state = cell.zero_state(batch_size, tf.float32)
+       sLen = tf.placeholder(tf.int32)
+       loss = tf.Variable(0.,trainable = False)
 
-       with tf.device("/gpu:0"):
-           embedding = tf.get_variable("embedding", [vocab_size, size])
-           inputs = tf.nn.embedding_lookup(embedding, self._input_data)
+       istate = state = tf.placeholder(tf.float32,[None,config.hidden_size])
+       x = tf.transpose(self.input_data,[1,0,2])
+       x = tf.reshape(x,[-1,3])
+       x = tf.split(0,config.MaxNumSteps,x)
+       y = tf.transpose(self.targets,[1,0,2])
+       y = tf.reshape(y,[-1,3])
+       y = tf.split(0,config.MaxNumSteps,y)
 
-       if is_training and config.keep_prob < 1:
-           inputs = tf.nn.dropout(inputs, config.keep_prob)
 
-       # Simplified version of tensorflow.models.rnn.rnn.py's rnn().
-       # This builds an unrolled LSTM for tutorial purposes only.
-       # In general, use the rnn() or state_saving_rnn() from rnn.py.
-       #
-       # The alternative version of the code below is:
-       #
-       # from tensorflow.models.rnn import rnn
-       # inputs = [tf.squeeze(input_, [1])
-       #           for input_ in tf.split(1, num_steps, inputs)]
-       # outputs, state = rnn.rnn(cell, inputs, initial_state=self._initial_state)
-       outputs = []
-       state = self._initial_state
-       with tf.variable_scope("RNN"):
-           for time_step in range(num_steps):
-            if time_step > 0: tf.get_variable_scope().reuse_variables()
-            (cell_output, state) = cell(inputs[:, time_step, :], state)
-            outputs.append(cell_output)
+       #Initialize LSTM Basic Cell
+       lstm = tf.nn.rnn_cell.BasicLSTMCell(config.hidden_size)
+       ### One could potentially expand this to multiple layers thusly
+       # cell = tf.nn.rnn_cell.MultiRNNCell([lstm]*config.num_layers)
+       #RNN
+       import IPython; IPython.embed()
+       ops, states = tf.nn.rnn(lstm,x,dtype=tf.float32,sequence_length=sLen)
+       #unclear if this should be a list
+       for op,target in zip(ops,y):
+           logits = tf.matmul(op,w)+ b
+           probabilities = tf.nn.softmax(logits)
+           loss += self.loss_function(target,probabilities)
 
-       output = tf.reshape(tf.concat(1, outputs), [-1, size])
-       softmax_w = tf.get_variable("softmax_w", [size, vocab_size])
-       softmax_b = tf.get_variable("softmax_b", [vocab_size])
-       logits = tf.matmul(output, softmax_w) + softmax_b
-       loss = tf.nn.seq2seq.sequence_loss_by_example(
-        [logits],
-        [tf.reshape(self._targets, [-1])],
-        [tf.ones([batch_size * num_steps])])
-       self._cost = cost = tf.reduce_sum(loss) / batch_size
-       self._final_state = state
+       #optimizer
+       optimizer = tf.train.GradientDescentOptimizer(0.1)
+       train_op = optimizer.minimize(loss)
+       #return train_op
+       return train_op
 
-       if not is_training:
-           return
-
-       self._lr = tf.Variable(0.0, trainable=False)
-       tvars = tf.trainable_variables()
-       grads, _ = tf.clip_by_global_norm(tf.gradients(cost, tvars),
-                                      config.max_grad_norm)
-       optimizer = tf.train.GradientDescentOptimizer(self.lr)
-       self._train_op = optimizer.apply_gradients(zip(grads, tvars))
-
-    def assign_lr(self, session, lr_value):
-        session.run(tf.assign(self.lr, lr_value))
-
-    @property
-    def input_data(self):
-        return self._input_data
-
-    @property
-    def targets(self):
-        return self._targets
-
-    @property
-    def initial_state(self):
-        return self._initial_state
-
-    @property
-    def cost(self):
-        return self._cost
-
-    @property
-    def final_state(self):
-        return self._final_state
-
-    @property
-    def lr(self):
-        return self._lr
-
-    @property
-    def train_op(self):
-        return self._train_op
+    def loss_function(self,targets,inputs):
+       loss = tf.reduce_mean((targets -inputs)**2)
+       return loss
 
 class Config(object):
   """Small config."""
@@ -115,13 +66,15 @@ class Config(object):
   max_grad_norm = 5
   num_layers = 2
   num_steps = 16
+  MaxNumSteps = 24
+  feat_dims = 10
   hidden_size = 200
   max_epoch = 4
   max_max_epoch = 13
   keep_prob = 1.0
   lr_decay = 0.5
   batch_size = 20
-  vocab_size = 10000
+  vocab_size = 3 #If I understand this correctly, vocab is x,y,z 
 
 class TestConfig(object):
   """Tiny config, for testing."""
@@ -130,6 +83,8 @@ class TestConfig(object):
   max_grad_norm = 1
   num_layers = 1
   num_steps = 2
+  MaxNumSteps = 24
+  feat_dims = 10
   hidden_size = 2
   max_epoch = 1
   max_max_epoch = 1
@@ -145,7 +100,7 @@ def get_config(config):
         return Config()
 
 
-def run_model(sess,m,data,eval_op,verbose=True):
+def run_model(sess,m,data,eval_op,SeqLength,verbose=True):
   """Runs the model on the given data."""
   epoch_size = ((len(data) // m.batch_size) - 1) // m.num_steps
   start_time = time.time()
@@ -160,7 +115,7 @@ def run_model(sess,m,data,eval_op,verbose=True):
     cost, state, _ = session.run([m.cost, m.final_state, eval_op],
                                  {m.input_data: data[:-1,:,step],
                                   m.targets: data[1:,:,step],
-                                  m.initial_state: state})
+                                  m.sLen: SeqLength})
     costs += cost
     iters += m.num_steps
 
@@ -177,6 +132,7 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint',type=str,default="/media/Gondor/Data/rnnlhc/")
     parser.add_argument('--loaddata',type=str,default="../data/EventDump_10Ktracks.json")
     parser.add_argument('--config',type=int,default=0,help="1 Train, 0 Test")
+    rand_int = 16
     args = parser.parse_args()
     json_data = parse_data(fname=args.loaddata)
     BD = BatchData.BatchData(json_data)
@@ -186,8 +142,7 @@ if __name__ == "__main__":
     eval_config.num_steps = 1
 
     with tf.Graph().as_default(), tf.Session() as session:
-      initializer = tf.random_uniform_initializer(-config.init_scale,
-                                                config.init_scale)
+      initializer = tf.random_uniform_initializer(-config.init_scale,config.init_scale)
       with tf.variable_scope("model", reuse=None, initializer=initializer):
           m = RNNLHC(is_training=True, config=config)
       with tf.variable_scope("model", reuse=True, initializer=initializer):
@@ -199,15 +154,14 @@ if __name__ == "__main__":
       for i in range(config.max_max_epoch):
           lr_decay = config.lr_decay ** max(i - config.max_epoch, 0.0)
           m.assign_lr(session, config.learning_rate * lr_decay)
-          train_data = BD.sample_batch(rand_int=16,batch_size=config.batch_size)
-          valid_data = BD.sample_batch(rand_int=16,batch_size=config.batch_size)
-          import IPython; IPython.embed()
+          train_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
+          valid_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
 
           print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
-          train_perplexity = run_model(session, m, train_data, m.train_op,
+          train_perplexity = run_model(session, m, train_data, m.train_op,rand_int,
                                        verbose=True)
           print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
-          valid_perplexity = run_model(session, mvalid, valid_data, tf.no_op())
+          valid_perplexity = run_model(session, mvalid, valid_data, tf.no_op(),rand_int)
           print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
 
       test_perplexity = run_model(session, mtest, test_data, tf.no_op())
