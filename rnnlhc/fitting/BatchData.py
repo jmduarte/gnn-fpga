@@ -51,9 +51,9 @@ class BatchData:
         #Choose indices randomly 
         idx = np.random.randint(0,len(self.data[str(rand_int)]),batch_size)
         #Init zeros
-        data = np.zeros((rand_int,self.dims,batch_size))
+        data = np.zeros((batch_size,rand_int,self.dims))
         for ii in range(batch_size):
-            data[:,:,ii] = np.array(self.data[str(rand_int)][idx[ii]])
+            data[ii,:,:] = np.array(self.data[str(rand_int)][idx[ii]])
         #Return as numpy array
 
         return data,rand_int
