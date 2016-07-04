@@ -10,7 +10,7 @@ This script also has a front facing main function to run the class.
 Mayur Mudigonda, June 2016
 
 '''
-class RNNLHC(object):
+class RNNLHC:
     """ The RNN LHC Model with just simple number of hidden weights """
     def __init__(self,is_training,config):
        self.batch_size = batch_size = config.batch_size
@@ -66,6 +66,7 @@ class RNNLHC(object):
                                       config.max_grad_norm)
        optimizer = tf.train.GradientDescentOptimizer(self.lr)
        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
+       self.states = states
        return
 
     def loss_function(self,targets,inputs):
@@ -78,6 +79,10 @@ class RNNLHC(object):
     @property
     def lr(self):
         return self._lr
+    
+    @property
+    def states(self):
+        return self.states
 
     @property
     def loss(self):
@@ -113,14 +118,14 @@ class TestConfig(object):
   num_layers = 1
   num_steps = 2
   MaxNumSteps = 16
-  feat_dims = 10
+  feat_dims = 100
   hidden_size = 3
   max_epoch = 1
   max_max_epoch = 1
   keep_prob = 1.0
   lr_decay = 0.5
   batch_size = 20
-  vocab_size = 10000
+  vocab_size = 3 
 
 def get_config(config):
     if config == 0:
@@ -155,7 +160,7 @@ def run_model(sess,m,data,eval_op,SeqLength,verbose=True):
   return np.exp(costs / iters)
   '''
   import IPython; IPython.embed()
-  cost = sess.run([m.loss,eval_op],
+  cost,_ = sess.run([m.loss,eval_op],
                   {m.input_data: data[:-1,:,:],
                    m.targets: data[1:,:,:],
                    m.sLen: SeqLength})
@@ -176,52 +181,16 @@ if __name__ == "__main__":
     eval_config.batch_size = 1
     eval_config.num_steps = 1
 
-    '''
-    with tf.Graph().as_default(), tf.Session() as session:
-      initializer = tf.random_uniform_initializer(-config.init_scale,config.init_scale)
-      with tf.variable_scope("model", reuse=None, initializer=initializer):
-          print("Initializing train object")
-          m = RNNLHC(is_training=True, config=config)
-          print("Train object initialized")
-      with tf.variable_scope("model", reuse=True, initializer=initializer):
-          print("Initializing validation object")
-          mvalid = RNNLHC(is_training=False, config=config)
-          print("Validation object initialized")
-          print("Initializing test object")
-          mtest = RNNLHC(is_training=False, config=eval_config)
-          print("Test object initialized")
-
-      print("Intialize all variables")
-      #tf.initialize_all_variables().run()
-      print("Variables initialized")
-      import IPython; IPython.embed()
-
-      for i in range(config.max_max_epoch):
-          print("Adjust learning rate")
-          lr_decay = config.lr_decay ** max(i - config.max_epoch, 0.0)
-          m.assign_lr(session, config.learning_rate * lr_decay)
-          print("Sample data")
-          train_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
-          valid_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
-
-          print("Epoch: %d Learning rate: %.3f" % (i + 1, session.run(m.lr)))
-          train_perplexity = run_model(session, m, train_data, m.train_op,rand_int,verbose=True)
-          print("Epoch: %d Train Perplexity: %.3f" % (i + 1, train_perplexity))
-          valid_perplexity = run_model(session, mvalid, valid_data, tf.no_op(),rand_int)
-          print("Epoch: %d Valid Perplexity: %.3f" % (i + 1, valid_perplexity))
-
-      import IPython; IPython.embed()
-      test_perplexity = run_model(session, mtest, test_data, tf.no_op())
-      print("Test Perplexity: %.3f" % test_perplexity)
-      '''
     print("Initializing train object")
     m = RNNLHC(is_training=True, config=config)
     print("Train object initialized")
     with tf.Session() as sess:
         print("Starting a session")
         sess.run(tf.initialize_all_variables())
-        lr_decay = config.lr_decay ** max(0 - config.max_epoch, 0.0)
-        m.assign_lr(sess, config.learning_rate * lr_decay)
-        print("Sample data")
-        train_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
-        train_perplexity = run_model(sess,m,np.array(train_data)[0],m.train_op,rand_int,verbose=True)
+        for ii in range(100):
+            lr_decay = config.lr_decay ** max(0 - config.max_epoch, 0.0)
+            m.assign_lr(sess, config.learning_rate * lr_decay)
+            print("Sample data")
+            train_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
+            train_perplexity = run_model(sess,m,np.array(train_data)[0],m.train_op,rand_int,verbose=True)
+            print("Train Perplexity is {}".format(train_perplexity))
