@@ -14,7 +14,7 @@ class RNNLHC:
     """ The RNN LHC Model with just simple number of hidden weights """
     def __init__(self,is_training,config):
        self.batch_size = batch_size = config.batch_size
-       self.num_steps = num_steps = config.num_steps
+       #self.num_steps = num_steps = config.num_steps
        #Reset Default Graph
        tf.reset_default_graph()
 
@@ -32,7 +32,7 @@ class RNNLHC:
        sLen = tf.placeholder(tf.int32)
        loss = tf.Variable(0.,trainable = False)
 
-       istate = state = tf.placeholder(tf.float32,[None,config.hidden_size])
+       #istate = state = tf.placeholder(tf.float32,[None,config.hidden_size])
        x = tf.transpose(self.input_data,[1,0,2])
        x = tf.reshape(x,[-1,3])
        #We'll transform the data to a slightly higher dimension here
@@ -66,7 +66,7 @@ class RNNLHC:
                                       config.max_grad_norm)
        optimizer = tf.train.GradientDescentOptimizer(self.lr)
        self.train_op = optimizer.apply_gradients(zip(grads, tvars))
-       self.states = states
+       self.states = states[-1]
        return
 
     def loss_function(self,targets,inputs):
@@ -112,20 +112,15 @@ class Config(object):
 
 class TestConfig(object):
   """Tiny config, for testing."""
-  init_scale = 0.1
-  learning_rate = 1.0
+  learning_rate = 1e-3
   max_grad_norm = 1
   num_layers = 1
-  num_steps = 2
   MaxNumSteps = 16
-  feat_dims = 100
+  feat_dims = 1000
   hidden_size = 3
   max_epoch = 1
-  max_max_epoch = 1
-  keep_prob = 1.0
   lr_decay = 0.5
   batch_size = 20
-  vocab_size = 3 
 
 def get_config(config):
     if config == 0:
@@ -136,11 +131,11 @@ def get_config(config):
 
 def run_model(sess,m,data,eval_op,SeqLength,verbose=True):
   """Runs the model on the given data."""
+  '''
   epoch_size = ((len(data) // m.batch_size) - 1) // m.num_steps
   start_time = time.time()
   costs = 0.0
   iters = 0
-  '''
   state = m.initial_state.eval()
   for step, (x, y) in enumerate(reader.ptb_iterator(data, m.batch_size,
                                                     m.num_steps)):
@@ -159,12 +154,11 @@ def run_model(sess,m,data,eval_op,SeqLength,verbose=True):
 
   return np.exp(costs / iters)
   '''
-  import IPython; IPython.embed()
-  cost,_ = sess.run([m.loss,eval_op],
+  cost,_,state = sess.run([m.loss,eval_op,m.states],
                   {m.input_data: data[:-1,:,:],
                    m.targets: data[1:,:,:],
                    m.sLen: SeqLength})
-  return cost
+  return cost,state
 
 
 if __name__ == "__main__":
@@ -187,10 +181,10 @@ if __name__ == "__main__":
     with tf.Session() as sess:
         print("Starting a session")
         sess.run(tf.initialize_all_variables())
-        for ii in range(100):
+        for ii in range(int(1e+4)):
             lr_decay = config.lr_decay ** max(0 - config.max_epoch, 0.0)
             m.assign_lr(sess, config.learning_rate * lr_decay)
             print("Sample data")
             train_data = BD.sample_batch(rand_int=rand_int,batch_size=config.batch_size)
-            train_perplexity = run_model(sess,m,np.array(train_data)[0],m.train_op,rand_int,verbose=True)
+            train_perplexity,state = run_model(sess,m,np.array(train_data)[0],m.train_op,rand_int,verbose=True)
             print("Train Perplexity is {}".format(train_perplexity))
