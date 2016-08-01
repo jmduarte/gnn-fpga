@@ -10,15 +10,17 @@ class testrnn:
     def __init__(self,config):
         self.config = config
         tf.reset_default_graph()
-        with tf.variable_scope("rnnlch") as scope:
+        with tf.variable_scope("rnnlhc") as scope:
             self.input_data = tf.placeholder(tf.float32,[None,config.MaxNumSteps])
             self.eval_input_data = tf.placeholder(tf.float32,[1,3])#create eval node, 3 time steps
-            self.eval_target = tf.Variable(tf.constant(0.0,shape=[SEQ_LENGTH]))
+            #self.eval_target = tf.Variable(tf.constant(0.0,shape=[SEQ_LENGTH]))
+            self.eval_target = []
             self.target = tf.placeholder(tf.float32,[None,config.MaxNumSteps])
             loss = tf.Variable(0.,trainable=False)
             x_split = tf.split(0,config.batch_size,self.input_data)
             y_split = tf.split(0,config.batch_size,self.target)
             x_eval_split = tf.split(0,1,self.eval_input_data)# split the evaluation input by the number of time steps
+            #x_eval_split = [self.eval_input_data for _ in range(SEQ_LENGTH)]
 
             w = tf.Variable(tf.random_normal([config.hidden_size,config.FC_Units],stddev=0.1),trainable=True)
             b = tf.Variable(tf.constant(0.0,shape=[config.FC_Units]),trainable=True)
@@ -52,14 +54,25 @@ class testrnn:
             '''
             self.train_op = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(loss)
             #Eval network
-            scope.reuse_variables()
+        #scope.reuse_variables()
+        #with tf.variable_scope(scope,reuse=True):
+        with tf.variable_scope("rnnlhc_eval") as scope:
+            lstm_init = lstm.zero_state(1,tf.float32) #Init for batch size 1
+            #scope.reuse_variables()
             for tstep in range(SEQ_LENGTH):
-                if tstep < 3:
-                    import IPython; IPython.embed()
-                    tmp = lstm(x_eval_split,tf.zeros([1,1]))
-                    self.eval_target[tstep] = tmp
+                if tstep == 0:
+                    output, output_state = lstm(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)),lstm_init)
+                    self.eval_target.append( x_eval_split[0][:,tstep])
+                    scope.reuse_variables()
+                elif tstep > 0 and tstep < 3:
+                    output, output_state = lstm(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)),output_state)
+                    self.eval_target.append(x_eval_split[0][:,tstep])
                 else:
-                    self.eval_target[tstep] = lstm(self.eval_target[tstep])
+                    transform1 = tf.nn.elu(tf.matmul(output,w)+b)
+                    transform2 = tf.nn.elu(tf.matmul(transform1,w_2)+b_2)
+                    output, output_state = lstm(tf.reshape(transform2[0,tstep],shape=(1,1)),output_state)
+                    self.eval_target.append(output)
+
 
 
 
