@@ -79,12 +79,12 @@ class testrnn:
             #scope.reuse_variables()
             for tstep in range(SEQ_LENGTH):
                 if tstep == 0:
-                    output, output_state = lstm(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)),lstm_init)
-                    eval_target_lst.append(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)))
+                    output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),lstm_init)
+                    eval_target_lst.append(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)))
                     #scope.reuse_variables()
                 elif tstep > 0 and tstep < 3:
-                    output, output_state = lstm(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)),output_state)
-                    eval_target_lst.append(tf.reshape(x_eval_split[0][:,tstep],shape=(1,1)))
+                    output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),output_state)
+                    eval_target_lst.append(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)))
                 else:
                     transform1 = tf.nn.elu(tf.matmul(output,w)+b)
                     transform2 = tf.nn.elu(tf.matmul(transform1,w_2)+b_2)
@@ -137,6 +137,7 @@ def run_model(sess,m,data,eval_op,verbose=True):
 
 def eval_model(sess,m,data,eval_op):
   output = sess.run([eval_op],{m.eval_input_data:data[:,:3]})
+  import IPython; IPython.embed()
   return cost, output
 
 
