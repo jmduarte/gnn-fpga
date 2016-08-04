@@ -4,7 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-SEQ_LENGTH = 10
+#SEQ_LENGTH = 10
 
 class testrnn:
     def __init__(self,config):
@@ -74,10 +74,10 @@ class testrnn:
             train_scope.reuse_variables()
         #with tf.variable_scope(scope,reuse=True):
         #with tf.variable_scope("rnnlhc_eval") as scope:
+            eval_target_lst = []
             lstm_init = lstm.zero_state(1,tf.float32) #Init for batch size 1
-            eval_target_lst=[]
             #scope.reuse_variables()
-            for tstep in range(SEQ_LENGTH):
+            for tstep in range(config.MaxNumSteps):
                 if tstep == 0:
                     output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),lstm_init)
                     eval_target_lst.append(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)))
@@ -137,7 +137,6 @@ def run_model(sess,m,data,eval_op,verbose=True):
 
 def eval_model(sess,m,data,eval_op):
   output = sess.run([eval_op],{m.eval_input_data:data[:,:3]})
-  import IPython; IPython.embed()
   return cost, output
 
 
@@ -168,9 +167,16 @@ if __name__ == "__main__":
             cost_lst.append(cost)
             if np.mod(ii,100) == 0:
                 print("cost is {}".format(cost))
-                ind,data = m.generate_data(1) #Eval data
-                cost, output = eval_model(sess,m,data,m.eval_target)
+                ind,eval_data = m.generate_data(1) #Eval data
+                cost, output = eval_model(sess,m,eval_data,m.eval_target)
         plt.plot(cost_lst)
         plt.title('Cost vs iterations')
         plt.savefig('RNN_train_1.png')
+        plt.clf()
+        plt.plot(eval_data.T,'r')
+        plt.hold(True)
+        plt.plot(np.array(output).flatten().T,'g')
+        plt.title('reconstruction of trajectories')
+        plt.savefig('reconstr.png')
         import IPython; IPython.embed()
+
