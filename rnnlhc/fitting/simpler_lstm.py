@@ -44,7 +44,7 @@ class testrnn:
                     shape=(config.batch_size,1)), output_state)
 
                 transform1 = tf.nn.elu(tf.matmul(output,w)+b)
-                dropout = tf.nn.dropout(transform1,keep_prob=0.6)
+                dropout = tf.nn.dropout(transform1,keep_prob=0.75)
                 transform2 = tf.nn.elu(tf.matmul(dropout,w_2)+b_2)
                 loss += tf.reduce_mean((transform2-self.target[:,ii])**2)
             loss += tf.nn.l2_loss(w) + tf.nn.l2_loss(w_2) + tf.nn.l2_loss(b) + tf.nn.l2_loss(b_2)
@@ -115,7 +115,7 @@ class testrnn:
             return x_data_list,y_data_list
     
     def transform(self,x):
-        return 0.5*np.sin(x) + np.random.rand()/100.
+        return 0.5*np.sin(x*np.random.rand()/10.) + np.random.rand()/100.
         #return 0.5*np.sin(x) + 0.25
 
     def assign_lr(self, session, lr_value):
@@ -160,7 +160,7 @@ if __name__ == "__main__":
    cost_lst = []
    with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        for ii in range(500):
+        for ii in range(1500):
             m.assign_lr(sess,config.learning_rate)
             ind,data = m.generate_data(m.config.batch_size)
             cost = run_model(sess,m,data,m.train_op)
@@ -173,10 +173,14 @@ if __name__ == "__main__":
         plt.title('Cost vs iterations')
         plt.savefig('RNN_train_1.png')
         plt.clf()
-        plt.plot(eval_data.T,'r')
+        plt.plot(eval_data.T,label='Data')
         plt.hold(True)
-        plt.plot(np.array(output).flatten().T,'g')
+        plt.plot(np.array(output).flatten().T,label='Reconstr')
+        plt.legend()
         plt.title('reconstruction of trajectories')
         plt.savefig('reconstr.png')
-        import IPython; IPython.embed()
+        plt.clf()
+        plt.plot(data.T)
+        plt.title('Example Data batch')
+        plt.savefig('data.png')
 

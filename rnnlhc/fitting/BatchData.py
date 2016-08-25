@@ -21,7 +21,7 @@ class BatchData:
 
         #identify the various sequence lengths
         #####HARDCODE######
-        hist_vals, bin_edge = np.histogram(layers,np.arange(11,23))
+        hist_vals, bin_edge = np.histogram(layers,np.arange(11,23)) # might go lower than 11
         self.hist_vals = hist_vals
         self.bin_edge = bin_edge
         #Dictionary empty init
