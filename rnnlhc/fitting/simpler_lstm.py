@@ -12,7 +12,7 @@ class testrnn:
         tf.reset_default_graph()
         with tf.variable_scope("rnnlhc") as train_scope:
             self.input_data = tf.placeholder(tf.float32,[config.batch_size,config.MaxNumSteps])
-            self.eval_input_data = tf.placeholder(tf.float32,[1,3])#create eval node, 3 time steps
+            self.eval_input_data = tf.placeholder(tf.float32,[1,config.MaxNumSteps])#create eval node, 3 time steps
             #self.eval_target = tf.Variable(tf.constant(0.0,shape=[SEQ_LENGTH]))
             #self.eval_target = tf.zeros((SEQ_LENGTH,1)) 
             self.target = tf.placeholder(tf.float32,[None,config.MaxNumSteps])
@@ -82,17 +82,11 @@ class testrnn:
                     output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),lstm_init)
                     eval_target_lst.append(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)))
                     #scope.reuse_variables()
-                elif tstep > 0 and tstep < 3:
-                    output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),output_state)
-                    eval_target_lst.append(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)))
                 else:
+                    output, output_state = lstm(tf.reshape(self.eval_input_data[0,tstep],shape=(1,1)),output_state)
                     transform1 = tf.nn.elu(tf.matmul(output,w)+b)
                     transform2 = tf.nn.elu(tf.matmul(transform1,w_2)+b_2)
-                    output, output_state = lstm(transform2,output_state)
                     eval_target_lst.append(transform2)
-            transform1 = tf.nn.elu(tf.matmul(output,w)+b)
-            transform2 = tf.nn.elu(tf.matmul(transform1,w_2)+b_2)
-            eval_target_lst.append(transform2)
             self.eval_target = tf.pack(eval_target_lst)
 
 
@@ -137,7 +131,7 @@ class testrnn:
       return cost
 
     def eval_model(self,sess,m,data,eval_op):
-      output = sess.run([eval_op],{m.eval_input_data:data[:,:3]})
+      output = sess.run([eval_op],{m.eval_input_data:data[:,:-1]})
       return output
 
 
