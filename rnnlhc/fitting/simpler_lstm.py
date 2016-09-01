@@ -47,7 +47,7 @@ class testrnn:
                 dropout = tf.nn.dropout(transform1,keep_prob=0.75)
                 transform2 = tf.nn.elu(tf.matmul(dropout,w_2)+b_2)
                 loss += tf.reduce_mean((transform2-self.target[:,ii])**2)
-            loss += tf.nn.l2_loss(w) + tf.nn.l2_loss(w_2) + tf.nn.l2_loss(b) + tf.nn.l2_loss(b_2)
+            loss += 0.1* tf.nn.l2_loss(w) + 0.1*tf.nn.l2_loss(w_2) + 0.1*tf.nn.l2_loss(b) + 0.1*tf.nn.l2_loss(b_2)
             '''
             #Compute loss
             for op,target in zip(ops,y_split):
@@ -100,23 +100,27 @@ class testrnn:
         return tf.reduce_mean((ip-op)**2) + tf.nn.l2_loss(w) + tf.nn.l2_loss(b)
 
 
-    def generate_data(self,num=None):
+    def generate_data(self,num=None,data_type=1):
             x_data_list = np.zeros((num,self.config.MaxNumSteps+1))
             y_data_list = np.zeros((num,self.config.MaxNumSteps+1))
             for j in range(0,num):
                     #generate randome sequence equal to number of points
                     x_data = np.array([np.linspace(0,4*np.pi,num = self.config.MaxNumSteps+1)] )
-                    #x_data = np.random.rand(BATCH_SIZE,TOTAL_NUM_POINTS)
-                    y_data = self.transform(x_data)
-                    #y_data = np.reshape(y_data,[BATCH_SIZE,TOTAL_NUM_POINTS])
+                    if data_type == 1: #Sinusoid
+                        y_data = self.sinusoid(x_data)
+                    elif data_type == 2: #Sinusoid with large noise
+                        y_data = self.sinusoid2(x_data)
                     x_data_list[j,:] = x_data
                     y_data_list[j,:] = y_data
             
             return x_data_list,y_data_list
     
-    def transform(self,x):
+    def sinusoid2(self,x):
         return 0.5*np.sin(x*np.random.rand()/10.) + np.random.rand()/100.
         #return 0.5*np.sin(x) + 0.25
+
+    def sinusoid(self,x):
+        return 0.5*np.sin(x) + np.random.rand()/10.
 
     def assign_lr(self, session, lr_value):
         session.run(tf.assign(self.lr, lr_value))
@@ -128,59 +132,26 @@ class testrnn:
             plt.hold(True)
         return fig
 
+    def run_model(self,sess,m,data,eval_op,verbose=True):
+      cost,_ = sess.run([m.loss,eval_op],{m.input_data: data[:,:-1],m.target: data[:,1:]})
+      return cost
 
-
-
-def run_model(sess,m,data,eval_op,verbose=True):
-  cost,_ = sess.run([m.loss,eval_op],{m.input_data: data[:,:-1],m.target: data[:,1:]})
-  return cost
-
-def eval_model(sess,m,data,eval_op):
-  output = sess.run([eval_op],{m.eval_input_data:data[:,:3]})
-  return cost, output
+    def eval_model(self,sess,m,data,eval_op):
+      output = sess.run([eval_op],{m.eval_input_data:data[:,:3]})
+      return output
 
 
 class TestConfig(object):
   """Tiny config, for testing."""
-  learning_rate = 1e-3
+  learning_rate = 1e-4
   max_grad_norm = 0.1
   num_layers = 2
-  MaxNumSteps = 20
+  MaxNumSteps = 12 
   feat_dims = 1
-  hidden_size = 10
+  hidden_size = 20
   max_epoch = 1
   lr_decay = 0.
   batch_size = 20
   num_layers = 2
-  FC_Units = 20
-
-if __name__ == "__main__":
-   config = TestConfig()
-   m = testrnn(config)
-   cost_lst = []
-   with tf.Session() as sess:
-        sess.run(tf.initialize_all_variables())
-        for ii in range(1500):
-            m.assign_lr(sess,config.learning_rate)
-            ind,data = m.generate_data(m.config.batch_size)
-            cost = run_model(sess,m,data,m.train_op)
-            cost_lst.append(cost)
-            if np.mod(ii,100) == 0:
-                print("cost is {}".format(cost))
-                ind,eval_data = m.generate_data(1) #Eval data
-                cost, output = eval_model(sess,m,eval_data,m.eval_target)
-        plt.plot(cost_lst)
-        plt.title('Cost vs iterations')
-        plt.savefig('RNN_train_1.png')
-        plt.clf()
-        plt.plot(eval_data.T,label='Data')
-        plt.hold(True)
-        plt.plot(np.array(output).flatten().T,label='Reconstr')
-        plt.legend()
-        plt.title('reconstruction of trajectories')
-        plt.savefig('reconstr.png')
-        plt.clf()
-        plt.plot(data.T)
-        plt.title('Example Data batch')
-        plt.savefig('data.png')
+  FC_Units = 60
 
