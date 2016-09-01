@@ -12,7 +12,7 @@ if __name__ == "__main__":
    cost_lst = []
    with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        for ii in range(200):
+        for ii in range(2000):
             m.assign_lr(sess,config.learning_rate)
             ind,data = m.generate_data(m.config.batch_size,2)
             cost = m.run_model(sess,m,data,m.train_op)
@@ -21,9 +21,11 @@ if __name__ == "__main__":
                 print("cost is {}".format(cost))
                 eval_list =[]
                 output_list = []
+                np.random.seed(12345)
                 for kk in range(5): #Let's evaluate on 5 inputs
                     ind,eval_data = m.generate_data(1,2) #Eval data
-                    output = m.eval_model(sess,m,eval_data,m.eval_target)
+                    output,eucl_l = m.eval_model(sess,m,eval_data,m.eval_target,m.eucl_loss)
+                    print("Euclidean loss is {}".format(eucl_l))
                     eval_list.append(eval_data)
                     output_list.append(output)
         plt.plot(cost_lst)
