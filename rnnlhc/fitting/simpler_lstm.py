@@ -74,6 +74,21 @@ class testrnn:
 
             self.eucl_loss = euclidean_loss
             self.eval_target = tf.pack(eval_target_lst)
+            w_summary_t = tf.image_summary('w1',w)
+
+
+    def init_logging(self,sess):
+        w_summary_t = tf.image_summary('w1',w)
+        self.w_summary_t = w_summary_t
+        return summary_op
+
+    def save_summary(self,sess,smry,step):
+        summaryWriter = tf.train.SummaryWriter('/home/mudigonda/Projects/rnnlhc/rnnlhc/fitting/Logs',sess.graph)
+        #assumes smry is a list
+        if not type(smry) is list:
+            smry = [smry]
+        for sm in smry:
+            summaryWriter.add_summary(sm,step)
 
 
     def loss_function(self,ip,op,w,b):
@@ -117,6 +132,7 @@ class testrnn:
       return cost
 
     def eval_model(self,sess,m,data,eval_op,eucl_l):
+      data = data.reshape(1,self.config.MaxNumSteps+1)
       output,eucl_l = sess.run([eval_op,eucl_l],{m.eval_input_data:data[:,:-1]})
       return output, eucl_l
 
@@ -131,7 +147,7 @@ class TestConfig(object):
   hidden_size = 20
   max_epoch = 1
   lr_decay = 0.
-  batch_size = 20
+  batch_size = 200
   num_layers = 2
   FC_Units = 60
   lam = 0.0
