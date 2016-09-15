@@ -32,7 +32,6 @@ if __name__ == "__main__":
                 print("cost is {}".format(cost))
                 eval_list =[]
                 output_list = []
-                np.random.seed(12345)
                 for kk in range(10): #Let's evaluate on 5 inputs
                     #ind,eval_data = m.generate_data(1,2) #Eval data
                     output,eucl_l = m.eval_model(sess,m,test[kk,:],m.eval_target,m.eucl_loss)
@@ -50,7 +49,8 @@ if __name__ == "__main__":
             plt.plot(np.array(output_list[kk]).flatten().T,'k*')
             plt.legend()
             axes = plt.gca()
-            axes.set_ylim([-0.6,0.6])
+            #axes.set_ylim([-0.6,0.6])
+            axes.set_yscale('log')
             plt.title('reconstruction of trajectories')
             plt.savefig('reconstr' + str(kk) + '.png')
             plt.clf()
