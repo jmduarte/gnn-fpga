@@ -14,7 +14,7 @@ class testrnn:
             self.input_data = tf.placeholder(tf.float32,[config.batch_size,config.MaxNumSteps])
             self.eval_input_data = tf.placeholder(tf.float32,[1,config.MaxNumSteps])#create eval node, 3 time steps
             self.target = tf.placeholder(tf.float32,[None,config.MaxNumSteps])
-            #loss = tf.Variable(0.,trainable=False)
+            loss = tf.Variable(0.,trainable=False)
             x_split = tf.split(0,config.batch_size,self.input_data)
             y_split = tf.split(0,config.batch_size,self.target)
             x_eval_split = tf.split(0,1,self.eval_input_data)# split the evaluation input by the number of time steps
@@ -30,8 +30,8 @@ class testrnn:
             #ops, states = tf.nn.rnn(lstm_multi,x_split,dtype=tf.float32)
             lstm_init = lstm.zero_state(config.batch_size,tf.float32)
             train_output = []
-            train_interm_output = tf.Variable(tf.constant(0.,shape=[config.batch_size,config.MaxNumSteps]),trainable=False)
-            loss = tf.Variable(tf.constant(0.,shape=[1,config.MaxNumSteps]),trainable=False)
+            train_interim_output = tf.Variable(tf.constant(0.,shape=[config.batch_size,1]),trainable=False,name='TrainInterim')
+            #loss = tf.Variable(tf.constant(0.,shape=[1,config.MaxNumSteps]),trainable=False,name='Loss')
             for ii in range(config.MaxNumSteps):
                 if ii == 0:
                     output, output_state = lstm(tf.reshape(self.input_data[:,ii],\
@@ -45,22 +45,25 @@ class testrnn:
                 #dropout = tf.nn.dropout(transform1,keep_prob=0.5)
                 #transform2 = tf.nn.elu(tf.matmul(dropout,w_2)+b_2)
                 transform2 = tf.nn.elu(tf.matmul(transform1,w_2)+b_2)
+                #print transform2.get_shape()
+                #print self.target[:,ii].get_shape()
+                squared_op = (tf.transpose(transform2) - self.target[:,ii])**2
+                #print squared_op.get_shape()
                 #loss += tf.reduce_mean((transform2-self.target[:,ii])**2)
-                indices = [[0,ii]]
-                values = tf.reshape(tf.reduce_mean((transform2-self.target[:,ii])**2),shape=(1,))
-                shape = [1, config.MaxNumSteps]
-                delta = tf.SparseTensor(indices,values,shape)
-                loss = loss + tf.sparse_tensor_to_dense(delta)
-                #train_interm_output[:,ii] = transform2
+                loss += tf.reduce_mean(squared_op)
+                #loss += tf.reduce_sum((transform2 - self.target[:,ii])**2)
+                train_interim_output = tf.transpose(squared_op) 
                 train_output.append(transform2)
             self.train_output = tf.pack(train_output)
             #Loss + Regularization
-            loss += config.lam* tf.nn.l2_loss(w) + config.lam*tf.nn.l2_loss(w_2) +\
-            config.lam*tf.nn.l2_loss(b) + config.lam*tf.nn.l2_loss(b_2)
+            #loss += config.lam* tf.nn.l2_loss(w) + config.lam*tf.nn.l2_loss(w_2) +\
+            #config.lam*tf.nn.l2_loss(b) + config.lam*tf.nn.l2_loss(b_2)
             #Use the variables above to also unravel the eval node
-            self.loss = tf.reduce_mean(loss)
-            self.lr = tf.Variable(0.0, trainable=False)
+            self.loss = loss
+            #self.loss = tf.reduce_mean(loss)
+            self.lr = tf.Variable(0.0, trainable=False,name='LR')
             self.train_op = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(loss)
+            self.train_interim_output = train_interim_output
             #Eval network
             train_scope.reuse_variables()
         #with tf.variable_scope(scope,reuse=True):
@@ -81,7 +84,7 @@ class testrnn:
             euclidean_loss = 0.
 
             for tstep in range(config.MaxNumSteps-1):
-                euclidean_loss = euclidean_loss + (eval_target_lst[tstep] - self.eval_input_data[0,tstep])**2
+                euclidean_loss = euclidean_loss + (tf.transpose(eval_target_lst[tstep]) - self.eval_input_data[0,tstep])**2
 
             self.eucl_loss = euclidean_loss
             self.eval_target = tf.pack(eval_target_lst)
@@ -139,7 +142,7 @@ class testrnn:
         return fig
 
     def run_model(self,sess,m,data,eval_op,verbose=True):
-      cost,_, train_output = sess.run([m.loss,eval_op,m.train_output],{m.input_data: data[:,:-1],m.target: data[:,1:]})
+      cost,_, train_output,train_interim_output = sess.run([m.loss,eval_op,m.train_output,m.train_interim_output],{m.input_data: data[:,:-1],m.target: data[:,1:]})
       return cost
 
     def eval_model(self,sess,m,data,eval_op,eucl_l):
@@ -158,7 +161,7 @@ class TestConfig(object):
   hidden_size = 20
   max_epoch = 1
   lr_decay = 0.
-  batch_size = 200
+  batch_size =  200
   num_layers = 2
   FC_Units = 60
   lam = 0.0
