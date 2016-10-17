@@ -88,7 +88,10 @@ class testrnn:
 
             self.eucl_loss = euclidean_loss
             self.eval_target = tf.pack(eval_target_lst)
-            w_summary_t = tf.image_summary('w1',w)
+            w1_summary_t = tf.histogram_summary('w1',w)
+            w2_summary_t = tf.histogram_summary('w2',w)
+            summary_op = tf.merge_all_summaries()
+            self.summary = summary_op
 
 
     def init_logging(self,sess):
@@ -142,8 +145,8 @@ class testrnn:
         return fig
 
     def run_model(self,sess,m,data,eval_op,verbose=True):
-      cost,_, train_output,train_interim_output = sess.run([m.loss,eval_op,m.train_output,m.train_interim_output],{m.input_data: data[:,:-1],m.target: data[:,1:]})
-      return cost
+      cost,summ,_, train_output,train_interim_output = sess.run([m.loss,m.summary,eval_op,m.train_output,m.train_interim_output],{m.input_data: data[:,:-1],m.target: data[:,1:]})
+      return cost,summ
 
     def eval_model(self,sess,m,data,eval_op,eucl_l):
       data = data.reshape(1,self.config.MaxNumSteps+1)

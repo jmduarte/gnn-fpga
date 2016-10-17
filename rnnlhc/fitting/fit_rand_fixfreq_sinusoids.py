@@ -23,12 +23,14 @@ if __name__ == "__main__":
    cost_lst = []
    with tf.Session() as sess:
         tf.set_random_seed(1234)
+        summary_writer = tf.train.SummaryWriter('Logs/')
         sess.run(tf.initialize_all_variables())
         for ii in range(args.niter):
             m.assign_lr(sess,config.learning_rate)
             #ind,data = m.generate_data(m.config.batch_size,2)
             data = get_train_batch(train,m.config.batch_size)
-            cost = m.run_model(sess,m,data,m.train_op)
+            cost,summ = m.run_model(sess,m,data,m.train_op)
+            summary_writer.add_summary(summ,ii)
             cost_lst.append(cost)
             if np.mod(ii,100) == 0:
                 print("cost is {}".format(cost))

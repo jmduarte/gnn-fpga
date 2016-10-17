@@ -25,6 +25,7 @@ if __name__ == "__main__":
    BD = BatchData.BatchData(parsed_json_data)
    config = TestConfig()
    m = testrnn(config)
+   test, rand_int = BD.sample_batch(m.config.MaxNumSteps,m.config.batch_size)
    cost_lst = []
    with tf.Session() as sess:
         tf.set_random_seed(1234)
@@ -41,14 +42,13 @@ if __name__ == "__main__":
                 print("cost is {}".format(cost))
                 eval_list =[]
                 output_list = []
-                for kk in range(10): #Let's evaluate on 5 inputs
-                    #ind,eval_data = m.generate_data(1,2) #Eval data
-                    output,eucl_l = m.eval_model(sess,m,test[kk,:],m.eval_target,m.eucl_loss)
-                    print("Euclidean loss is {}".format(eucl_l))
-                    output_list.append(output)
+                output,eucl_l = m.eval_model(sess,m,test,m.eval_target,m.eucl_loss)
+                print("Euclidean loss is {}".format(np.array(eucl_l).mean()))
+                output_list.append(output)
         plt.plot(cost_lst)
         plt.title('Cost vs iterations')
         plt.savefig('RNN_train_1.png')
+        '''
         plt.clf()
         for kk in range(10):
             plt.plot(range(config.MaxNumSteps+1),test[kk,:],'r',label='Data')
@@ -66,4 +66,5 @@ if __name__ == "__main__":
         plt.plot(data.T)
         plt.title('Example Data batch')
         plt.savefig('data.png')
+        '''
 

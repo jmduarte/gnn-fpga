@@ -12,12 +12,14 @@ if __name__ == "__main__":
    cost_lst = []
    with tf.Session() as sess:
         sess.run(tf.initialize_all_variables())
-        for ii in range(2000):
+        for ii in range(200):
             m.assign_lr(sess,config.learning_rate)
             ind,data = m.generate_data(m.config.batch_size,2)
-            cost = m.run_model(sess,m,data,m.train_op)
+            cost,smry = m.run_model(sess,m,data,m.train_op)
             cost_lst.append(cost)
             if np.mod(ii,100) == 0:
+                import IPython; IPython.embed()
+                m.save_summary(sess,smry,ii)
                 print("cost is {}".format(cost))
                 eval_list =[]
                 output_list = []
