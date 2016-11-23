@@ -124,15 +124,11 @@ def generate_straight_track(det_shape):
     b2 = np.random.random_sample()*(det_width - 1)
     # Calculate track slope
     m = (b2 - b) / det_depth
-    # restrict slope to only generate tracks that traverse the entire detector
-    #mmax = (det_width - 1 - b) / (det_depth - 1)
-    #mmin = -b / det_depth
-    #m = np.random.random_sample() * (mmax - mmin) + mmin
     return simulate_straight_track(m, b, det_shape)
 
 def generate_straight_tracks(n, det_shape):
     """
-    Generates single straight-track events.
+    Generates single straight-track events in 1D detector.
     Parameters:
         n: number of single-track events to generate
         det_shape: tuple of detector shape: (depth, width)
@@ -184,3 +180,33 @@ def generate_track_bkg(n, det_shape, tracks_per_event=2, skip_layers=5):
     # Zero out the skipped layers
     events[:,0:skip_layers,:] = 0
     return events
+
+def sim_trap_straight_track(m, b, det_widths):
+    """
+    Simulate var-layer detector data for one straight track.
+    Parameters:
+        m: track slope parameter
+        b: track first-layer intercept parameter
+        det_shape: list of detector layer widths
+    Returns:
+        List of ndarrays representing the detector data from each layer.
+    """
+    data = [np.zeroes(width) for width in det_widths]
+    hit_idxs = [int(round(m*l + b)) for l in range(len(det_widths))]
+    for layer, pixel in enumerate(hit_idxs):
+        data[layer][pixel] = 1
+    return data
+
+def generate_trap_straight_track(det_widths):
+    """
+    Sample track parameters and simulate data for one straight track in the
+    variable-layer detector.
+    Parameters:
+        det_shape: list of detector layer widths
+    Returns:
+        List of ndarrays representing the detector data from each layer.
+    """
+    rands = np.random.random_sample(2)
+    entry, exit = rands * (det_widths[0]-1, det_widths[-1]-1)
+    slope = (exit - entry) / len(widths)
+    return sim_trap_straight_track(slope, entry, det_widths)
