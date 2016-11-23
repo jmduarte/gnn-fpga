@@ -6,13 +6,99 @@ So far it just has the 1D detector straight-track data generation.
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
+
+def draw_event(event, title=None, mask_ranges=None, **kwargs):
+    """
+    Draw and format one 1D detector event with matplotlib.
+    Params:
+        event: data for one event in image format
+        title: plot title
+        mask_range: tuple of arrays, (lower, upper) defining a detector
+            mask envelope that will be drawn on the display
+        kwargs: additional keywords passed to pyplot.plot
+    """
+    plt.imshow(event.T, interpolation='none', aspect='auto',
+               origin='lower', **kwargs)
+    if title is not None:
+        plt.title(title)
+    plt.xlabel('Detector layer')
+    plt.ylabel('Detector pixel')
+    plt.autoscale(False)
+    plt.tight_layout()
+    if mask_ranges is not None:
+        plt.plot(mask_ranges[0], 'w:')
+        plt.plot(mask_ranges[1], 'w:')
+
+def calc_mask_ranges(det_width, mask_shapes):
+    """
+    Calculate the indices of the detector mask envelope.
+    Parameters:
+        det_width: width of the 1D detector
+        mask_shapes: ndarray of widths of the mask
+    Returns:
+        Two arrays representing the lower and upper index ranges of the detector mask.
+    """
+    lower = ((det_width - mask_shapes) / 2).astype(int)
+    upper = lower + mask_shapes
+    return lower, upper
+
+def construct_mask(det_shape, mask_shapes):
+    """
+    Construct the boolean mask used to select a wedge of the detector.
+    Parameters:
+        det_shape: shape of the full 1D detector
+        mask_shapes: ndarray of widths of the mask
+    Returns:
+        Boolean array of the detector mask, with dimensions matching det_shape.
+    """
+    det_mask = np.zeros(det_shape, bool)
+    lower, upper = calc_mask_ranges(det_shape[1], mask_shapes)
+    for i, (low, up) in enumerate(zip(lower, upper)):
+        det_mask[i, low:up] = True
+    return det_mask
+
+def apply_det_mask(data, mask):
+    """
+    Apply detector mask to 1D detector data events.
+    Parameters:
+        data: ndarray of 1D detector events
+        mask: boolean detector mask ndarray
+    Returns:
+        List of masked layer data arrays.
+    """
+    assert data[0].shape == mask.shape, \
+        'shapes unequal: {} != {}'.format(data[0].shape, mask.shape)
+    # Group event data by masked layers
+    return [data[:,ilayer,mask[ilayer]] for ilayer in range(mask.shape[0])]
+
+def expand_masked_data(masked_data, mask):
+    """
+    Unmask detector data and expand into fixed-size detector array.
+    Parameters:
+        masked_data: list of ndarrays of detector layer data
+            for multiple events
+        mask: boolean detector mask used to mask the data
+    Returns:
+        ndarray of data where each event is same shape as the mask
+    """
+    # Let's first assume that all layers are present.
+    # I will still need to handle the case where first or last layer is dropped.
+    assert len(masked_data) == mask.shape[0], \
+        'Data shape incompatible with detector mask'
+    output_shape = (len(masked_data[0]), *mask.shape)
+    output = np.zeros(output_shape)
+    # Loop over layers
+    for ilayer, mask in enumerate(mask):
+        output[:,ilayer,mask] = masked_data[ilayer]
+    return output
 
 def simulate_straight_track(m, b, det_shape):
     """
     Simulate detector data for one straight track.
     Parameters:
         m: track slope parameter
-        b: track first-layer intercept parameter
+        b: track first-layer intercept parameter (detector entry point)
         det_shape: tuple of detector shape: (depth, width)
     Returns:
         ndarray of binary detector data for one track.
