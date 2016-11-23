@@ -126,19 +126,36 @@ def generate_straight_track(det_shape):
     m = (b2 - b) / det_depth
     return simulate_straight_track(m, b, det_shape)
 
-def generate_straight_tracks(n, det_shape):
+def generate_straight_tracks(n, det_shape, entry_range=None, exit_range=None):
     """
     Generates single straight-track events in 1D detector.
     Parameters:
         n: number of single-track events to generate
         det_shape: tuple of detector shape: (depth, width)
+        entry_range: range tuple to sample detector entry point
+        exit_range: range tuple to sample detector exit point
     Returns:
         ndarray of detector data for n single-track events. The shape is
         (n, det_shape[0], det_shape[1]).
     """
-    tracks = [np.expand_dims(generate_straight_track(det_shape), 0)
-              for i in range(n)]
-    return np.concatenate(tracks, axis=0)
+    #tracks = [np.expand_dims(generate_straight_track(det_shape), 0)
+    #          for i in range(n)]
+    #return np.concatenate(tracks, axis=0)
+
+    # Initialize the data
+    det_depth, det_width = det_shape
+    data = np.zeros((n, det_depth, det_width))
+    # Sample detector entry and exit points
+    if entry_range is None: entry_range = (0, det_width)
+    if exit_range is None: exit_range = (0, det_width)
+    entry_points = np.random.uniform(size=n, *entry_range)
+    exit_points = np.random.uniform(size=n, *exit_range)
+    # Calculate track slopes
+    slopes = (exit_points - entry_points) / det_depth
+    # Simulate detector response and fill the data structure
+    for i, (entry, slope) in enumerate(zip(entry_points, slopes)):
+        data[i] = simulate_straight_track(slope, entry, det_shape)
+    return data
 
 def generate_uniform_noise(n, det_shape, prob=0.1, skip_layers=5):
     """
