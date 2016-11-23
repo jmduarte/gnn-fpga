@@ -104,9 +104,9 @@ def simulate_straight_track(m, b, det_shape):
         ndarray of binary detector data for one track.
     """
     x = np.zeros(det_shape)
-    hit_idxs = [round(m*l + b) for l in range(det_shape[0])]
-    for row, idx in enumerate(hit_idxs):
-        x[row, idx] = 1
+    idx = np.arange(det_shape[0])
+    hits = (idx*m + b).astype(int)
+    x[idx, hits] = 1
     return x
 
 def generate_straight_track(det_shape):
