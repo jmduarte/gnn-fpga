@@ -46,6 +46,23 @@ def calc_mask_ranges(det_width, mask_shapes):
     upper = lower + mask_shapes
     return lower, upper
 
+def get_mask_ranges(det_shape, mask_shapes):
+    """
+    Calculate the indices of the detector mask envelope.
+    Meant to replace the above function.
+    Parameters:
+        det_shape: shape of the full 1D detector, (depth, width)
+        mask_shapes: ndarray of widths of the mask
+    Returns:
+        ndarray of lower, upper indices in each 1D layer; shape=(depth, 2)
+    """
+    det_depth, det_width = det_shape
+    assert det_depth == mask_shapes.shape[0]
+    ranges = np.zeros((det_depth, 2), int)
+    ranges[:,0] = (det_width - mask_shapes) / 2
+    ranges[:,1] = ranges[:,0] + mask_shapes
+    return ranges
+
 def construct_mask(det_shape, mask_shapes):
     """
     Construct the boolean mask used to select a wedge of the detector.
@@ -56,9 +73,9 @@ def construct_mask(det_shape, mask_shapes):
         Boolean array of the detector mask, with dimensions matching det_shape.
     """
     det_mask = np.zeros(det_shape, bool)
-    lower, upper = calc_mask_ranges(det_shape[1], mask_shapes)
-    for i, (low, up) in enumerate(zip(lower, upper)):
-        det_mask[i, low:up] = True
+    mask_ranges = get_mask_ranges(det_shape, mask_shapes)
+    for i, r in enumerate(mask_ranges):
+        det_mask[i, r[0]:r[1]] = True
     return det_mask
 
 def apply_det_mask(data, mask):
