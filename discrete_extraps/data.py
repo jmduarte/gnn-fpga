@@ -7,9 +7,8 @@ So far it just has the 1D detector straight-track data generation.
 from __future__ import print_function
 
 import numpy as np
-import matplotlib.pyplot as plt
 
-def draw_event(event, title=None, mask_ranges=None, **kwargs):
+def draw_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
     """
     Draw and format one 1D detector event with matplotlib.
     Params:
@@ -19,6 +18,8 @@ def draw_event(event, title=None, mask_ranges=None, **kwargs):
             mask envelope that will be drawn on the display
         kwargs: additional keywords passed to pyplot.plot
     """
+    print('WARNING: this function deprecated. See drawing module')
+    import matplotlib.pyplot as plt
     plt.imshow(event.T, interpolation='none', aspect='auto',
                origin='lower', **kwargs)
     if title is not None:
@@ -26,7 +27,8 @@ def draw_event(event, title=None, mask_ranges=None, **kwargs):
     plt.xlabel('Detector layer')
     plt.ylabel('Detector pixel')
     plt.autoscale(False)
-    plt.tight_layout()
+    if tight:
+        plt.tight_layout()
     if mask_ranges is not None:
         plt.plot(mask_ranges[0], 'w:')
         plt.plot(mask_ranges[1], 'w:')
