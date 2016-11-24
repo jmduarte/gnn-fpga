@@ -4,6 +4,7 @@ data for the ML algorithms.
 
 So far it just has the 1D detector straight-track data generation.
 """
+from __future__ import print_function
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -86,7 +87,7 @@ def expand_masked_data(masked_data, mask):
     # I will still need to handle the case where first or last layer is dropped.
     assert len(masked_data) == mask.shape[0], \
         'Data shape incompatible with detector mask'
-    output_shape = (len(masked_data[0]), *mask.shape)
+    output_shape = (len(masked_data[0]),) + mask.shape
     output = np.zeros(output_shape)
     # Loop over layers
     for ilayer, mask in enumerate(mask):
