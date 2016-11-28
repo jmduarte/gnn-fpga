@@ -8,31 +8,6 @@ from __future__ import print_function
 
 import numpy as np
 
-def draw_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
-    """
-    Draw and format one 1D detector event with matplotlib.
-    Params:
-        event: data for one event in image format
-        title: plot title
-        mask_range: tuple of arrays, (lower, upper) defining a detector
-            mask envelope that will be drawn on the display
-        kwargs: additional keywords passed to pyplot.plot
-    """
-    print('WARNING: this function deprecated. See drawing module')
-    import matplotlib.pyplot as plt
-    plt.imshow(event.T, interpolation='none', aspect='auto',
-               origin='lower', **kwargs)
-    if title is not None:
-        plt.title(title)
-    plt.xlabel('Detector layer')
-    plt.ylabel('Detector pixel')
-    plt.autoscale(False)
-    if tight:
-        plt.tight_layout()
-    if mask_ranges is not None:
-        plt.plot(mask_ranges[0], 'w:')
-        plt.plot(mask_ranges[1], 'w:')
-
 def calc_mask_ranges(det_width, mask_shapes):
     """
     Calculate the indices of the detector mask envelope.
