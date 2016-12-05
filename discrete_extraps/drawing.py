@@ -45,6 +45,10 @@ def draw_train_history(history, figsize=(9,4)):
     plt.ylabel('Loss')
     plt.legend()
     # Plot accuracy
-    # No global accuracy available in multi-output data
-    #plt.subplot(122)
-    #plt.plot(history.epoch, history.history[
+    plt.subplot(122)
+    plt.plot(history.epoch, history.history['acc'], label='Training set')
+    plt.plot(history.epoch, history.history['val_acc'], label='Validation set')
+    plt.xlabel('Training epoch')
+    plt.ylabel('Accuracy')
+    plt.legend(loc=0)
+    plt.tight_layout()
