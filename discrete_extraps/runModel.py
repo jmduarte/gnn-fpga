@@ -101,6 +101,7 @@ def main():
     
     # Data generation
     # Signal tracks
+    np.random.seed(2017)
     sig_tracks = gen_straight_tracks_2d(args.num_event, args.num_det_layer,
                                         args.det_layer_size)
     # Background tracks
@@ -122,6 +123,7 @@ def main():
     logging.info('  sig_tracks: %g MB' % (size(sig_tracks)))
     logging.info('  bkg_tracks: %g MB' % (size(bkg_tracks)))
     logging.info('  noise:      %g MB' % (size(noise)))
+    logging.info('  checksum:   %i' % events.sum())
     
     # Clean up
     del bkg_tracks
