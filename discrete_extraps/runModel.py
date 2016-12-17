@@ -153,8 +153,7 @@ def main():
     logging.info('')
 
     # Get all of the training data predictions
-    # Not using this yet
-    #train_preds[:,1:,:] = model.predict(train_input, batch_size=args.batch_size)
+    train_preds = model.predict(train_input, batch_size=args.batch_size)
 
     #if args.output_dir is not None:
     #    filename = os.path.join([args.output_dir, 'model_' + args.model + '.h5'])
@@ -166,6 +165,17 @@ def main():
     #        logging.info('Saving training history to %s' % history_filename)
     #        np.savez(history_filename, **history.history)
     
+    # Report metrics
+    # Is this correct or am I neglecting one layer?
+    acc = calc_hit_accuracy(train_preds, train_target,
+                            num_seed_layers=args.num_seed_layer)
+
+    # Hit classification accuracy
+    hit_scores = train_preds * flatten_layers(events[:,1:,:,:])
+    class_acc = calc_hit_accuracy(hit_scores, train_target)
+
+    logging.info('Model accuracy: %f' % acc)
+    logging.info('Classification accuracy: %f' % class_acc)
     logging.info('All done!')
 
 if __name__ == '__main__':
