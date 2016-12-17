@@ -2,6 +2,8 @@
 This module contains code for calculating metrics like prediction accuracy.
 """
 
+import numpy as np
+
 def top_predictions(preds):
     """
     Choose the highest scored pixel on each layer.
@@ -34,4 +36,4 @@ def calc_hit_accuracy(preds, targets, num_seed_layers=0):
     top_targets = targets.astype(np.bool)
     num_correct = np.logical_and(top_preds, top_targets).sum()
     num_preds = preds.shape[0] * preds.shape[1]
-    return num_correct / num_preds
+    return float(num_correct) / num_preds
