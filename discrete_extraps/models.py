@@ -25,9 +25,9 @@ def build_lstm_model(length, dim, hidden_dim=100,
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     return model
 
-def build_deep_model(length, dim, dim=100,
-                     loss='categorical_crossentropy',
-                     optimizer='Nadam', metrics=['accuracy']):
+def build_deep_lstm_model(length, dim, hidden_dim=100,
+                          loss='categorical_crossentropy',
+                          optimizer='Nadam', metrics=['accuracy']):
     """
     Build the deep LSTM model.
     
@@ -37,9 +37,9 @@ def build_deep_model(length, dim, dim=100,
         (num_batch, length, dim).
     """
     inputs = layers.Input(shape=(length, dim))
-    hidden1 = layers.TimeDistributed(layers.Dense(dim, activation='relu'))(inputs)
-    hidden2 = layers.LSTM(output_dim=dim, return_sequences=True)(hidden1)
-    hidden3 = layers.TimeDistributed(layers.Dense(dim, activation='relu'))(hidden2)
+    hidden1 = layers.TimeDistributed(layers.Dense(hidden_dim, activation='relu'))(inputs)
+    hidden2 = layers.LSTM(output_dim=hidden_dim, return_sequences=True)(hidden1)
+    hidden3 = layers.TimeDistributed(layers.Dense(hidden_dim, activation='relu'))(hidden2)
     outputs = layers.TimeDistributed(layers.Dense(dim, activation='softmax'))(hidden3)
     model = models.Model(input=inputs, output=outputs)
     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
