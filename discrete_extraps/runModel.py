@@ -12,6 +12,7 @@ from keras import layers
 
 # Local imports
 from metrics import calc_hit_accuracy
+from models import build_lstm_model, build_deep_lstm_model
 
 def parse_args():
     """Parse the command line arguments"""
@@ -82,68 +83,6 @@ def flat_to_2d(data, det_width):
     """Expands the flattened layers to original (width x width)"""
     return data.reshape((data.shape[0], data.shape[1], det_width, det_width))
 
-#def top_predictions(preds):
-#    """
-#    Choose the highest scored pixel on each layer.
-#    This could be generalized to top-k by using argsort instead.
-#    """
-#    top_pixels = preds.argmax(axis=2)
-#    top_preds = np.zeros_like(preds, dtype=np.bool)
-#    layer_idx = np.arange(preds.shape[1])
-#    for ievt in range(preds.shape[0]):
-#        top_preds[ievt, layer_idx, top_pixels[ievt]] = 1
-#    return top_preds
-#
-#def calc_hit_accuracy(preds, targets, num_seed_layers=0):
-#    """Calculate the accuracy of hit predictions"""
-#    preds, targets = preds[:,num_seed_layers:], targets[:,num_seed_layers:]
-#    # Choose the top predictions in each detector layer
-#    top_preds = top_predictions(preds)
-#    # Probably unsafe to convert targets directly to bool
-#    top_targets = targets.astype(np.bool)
-#    num_correct = np.logical_and(top_preds, top_targets).sum()
-#    num_preds = preds.shape[0] * preds.shape[1]
-#    return num_correct / num_preds
-
-def build_model(det_shape, num_hidden=100,
-                loss='categorical_crossentropy',
-                optimizer='Nadam', metrics=['accuracy']):
-    """
-    Build and compile the keras model:
-    det_layers -> LSTM -> FC -> layer_predictions
-    """
-    det_depth, det_width, _ = det_shape
-    # Model inputs
-    inputs = layers.Input(shape=(det_depth-1, det_width*det_width))
-    # LSTM layer
-    hidden = layers.LSTM(output_dim=num_hidden, return_sequences=True)(inputs)
-    # Output fully-connected layer
-    outputs = layers.TimeDistributed(layers.Dense(det_width**2, activation='softmax'))(hidden)
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-    return model
-
-def build_deep_model(det_shape, num_hidden=100,
-                     loss='categorical_crossentropy',
-                     optimizer='Nadam', metrics=['accuracy']):
-    """
-    Build and compile a deep keras model:
-    det_layers -> FC -> LSTM -> FC -> FC -> layer_predictions
-    """
-    det_depth, det_width, _ = det_shape
-    # Model inputs
-    inputs = layers.Input(shape=(det_depth-1, det_width*det_width))
-    # Input fully-connected layer
-    hidden = layers.TimeDistributed(layers.Dense(num_hidden, activation='relu'))(inputs)
-    # LSTM layer
-    hidden = layers.LSTM(output_dim=num_hidden, return_sequences=True)(hidden)
-    # Output fully-connected layers
-    hidden = layers.TimeDistributed(layers.Dense(num_hidden, activation='relu'))(hidden)
-    outputs = layers.TimeDistributed(layers.Dense(det_width**2, activation='softmax'))(hidden)
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-    return model
-
 def main():
 
     args = parse_args()
@@ -196,12 +135,13 @@ def main():
     # Build the model
     logging.info('Building model')
     if args.model == 'default':
-        model_func = build_model
+        model_func = build_lstm_model
     elif args.model == 'deep':
-        model_func = build_deep_model
+        model_func = build_deep_lstm_model
     else:
         raise Exception('Unknown requested model: %s' % args.model)
-    model = model_func(det_shape, num_hidden=args.num_hidden)
+    model = model_func(args.num_det_layer-1, args.det_layer_size**2,
+                       hidden_dim=args.num_hidden)
     model.summary()
     
     # Train the model
