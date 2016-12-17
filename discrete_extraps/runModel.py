@@ -130,9 +130,8 @@ def main():
     del noise
     
     # Setup the inputs and outputs
-    train_input = flatten_layers(sig_tracks[:,:-1,:,:])
+    train_input = flatten_layers(events[:,:-1,:,:])
     train_target = flatten_layers(sig_tracks[:,1:,:,:])
-    #train_preds = flatten_layers(np.zeros_like(sig_tracks))
     
     # Build the model
     logging.info('Building model')
