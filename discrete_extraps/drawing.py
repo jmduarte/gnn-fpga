@@ -78,20 +78,22 @@ def draw_input_and_pred(event_input, event_pred, figsize=(9,4), mask_ranges=None
     plt.subplot(122)
     draw_event(event_pred, title='Model prediction', mask_ranges=mask_ranges)
 
-def draw_train_history(history, figsize=(12,5)):
+def draw_train_history(history, draw_val=True, figsize=(12,5)):
     """Make plots of training and validation losses and accuracies"""
     plt.figure(figsize=figsize)
     # Plot loss
     plt.subplot(121)
     plt.plot(history.epoch, history.history['loss'], label='Training set')
-    plt.plot(history.epoch, history.history['val_loss'], label='Validation set')
+    if draw_val:
+        plt.plot(history.epoch, history.history['val_loss'], label='Validation set')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
     plt.title('Training loss')
     plt.legend()
     plt.subplot(122)
     plt.plot(history.epoch, history.history['acc'], label='Training set')
-    plt.plot(history.epoch, history.history['val_acc'], label='Validation set')
+    if draw_val:
+        plt.plot(history.epoch, history.history['val_acc'], label='Validation set')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.ylim((0, 1))
