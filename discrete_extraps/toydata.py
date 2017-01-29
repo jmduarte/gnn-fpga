@@ -4,6 +4,7 @@ data for the ML algorithms.
 
 The toy model has 2D square detector layers.
 """
+
 from __future__ import print_function
 
 import numpy as np
