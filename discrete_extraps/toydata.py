@@ -24,11 +24,13 @@ def sample_track_params(n, num_det_layers, det_layer_size):
     slopes = (exit_points - entry_points) / float(num_det_layers - 1)
     return np.concatenate([slopes, entry_points], axis=1)
 
-def track_hit_coords(params, det_layer_idx, as_type=np.int):
+def track_hit_coords(params, det_layer_idx=None, num_det_layers=None, as_type=np.int):
     """
     Given an array of track params, give the coordinates
     of the hits in detector index space
     """
+    if det_layer_idx is None:
+        det_layer_idx = np.arange(num_det_layers)
     xslope, yslope, xentry, yentry = params
     xhits = xslope*det_layer_idx + xentry
     yhits = yslope*det_layer_idx + yentry
