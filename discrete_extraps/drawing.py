@@ -5,6 +5,8 @@ import math
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
 
 def draw_layer(ax, data, title=None, **kwargs):
     """Draw one detector layer as an image"""
@@ -28,6 +30,7 @@ def draw_layers(event, ncols=5, truthx=None, truthy=None, figsize=(12,5)):
     plt.tight_layout()
 
 def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
+    """Draw the 2D projections of an event, Z-X and Z-Y"""
     plt.figure(figsize=figsize)
     plt.subplot(121)
     kwargs = dict(interpolation='none',
@@ -47,6 +50,59 @@ def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
     plt.autoscale(False)
     if truthx is not None:
         plt.plot(np.arange(event.shape[0]-0.5), truthx-0.5, 'w-')
+
+def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
+                  pred_threshold=0.1, pred_alpha=0.2,
+                  color_map='rainbow'):
+    """
+    Draw 3D visualization of an event, a signal track, and a model prediction.
+    """
+    # Lookup the requested color map
+    cmap = cm.get_cmap(color_map)
+
+    # Setup the Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_xlabel('detector layer')
+    ax.set_ylabel('pixel x')
+    ax.set_zlabel('pixel y')
+    ax.set_xlim(0, event.shape[0]-1)
+    ax.set_ylim(0, event.shape[1])
+    ax.set_zlim(0, event.shape[2])
+
+    # Draw the event hits
+    if sig_track is not None:
+        event = event - sig_track
+    evhits = np.nonzero(event)
+    ax.scatter(evhits[0], evhits[1]+0.5, evhits[2]+0.5)
+
+    # Draw the signal track hits
+    if sig_track is not None:
+        sighits = np.nonzero(sig_track)
+        ax.scatter(sighits[0], sighits[1]+0.5, sighits[2]+0.5,
+                   c='r', marker='D')
+
+    # Draw the signal track true intercepts
+    if sig_params is not None:
+        layer_idx = np.arange(event.shape[0])
+        sigx, sigy = track_hit_coords(sig_params, layer_idx,
+                                      as_type=np.float32)
+        ax.plot(layer_idx, sigx, sigy, 'r')
+
+    # Draw the predictions on each detector plane
+    if prediction is not None:
+        # Surface grid coordinates, including endpoints
+        grid_idx = np.arange(event.shape[1]+1)
+        gridx, gridy = np.meshgrid(grid_idx, grid_idx)
+        for i in layer_idx:
+            colors = cmap(prediction[i])
+            # Set the global transparency of the prediction plane
+            colors[:,:,3] = pred_alpha
+            # Disable predictions below threshold
+            colors[prediction[i] < pred_threshold,:] = 0.
+            ax.plot_surface(i, gridx, gridy, rstride=1, cstride=1,
+                            facecolors=colors, shade=False)
+    plt.tight_layout()
 
 def draw_1d_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
     """
