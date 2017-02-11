@@ -21,7 +21,7 @@ def draw_layers(event, ncols=5, truthx=None, truthy=None, figsize=(12,5)):
     """Draw each detector layer as a grid of images"""
     num_det_layers = event.shape[0]
     nrows = math.ceil(float(num_det_layers)/ncols)
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     for ilay in range(num_det_layers):
         ax = plt.subplot(nrows, ncols, ilay+1)
         title = 'layer %i' % ilay
@@ -30,10 +30,11 @@ def draw_layers(event, ncols=5, truthx=None, truthy=None, figsize=(12,5)):
         if truthx is not None and truthy is not None:
             ax.plot(truthx[ilay]-0.5, truthy[ilay]-0.5, 'w+')
     plt.tight_layout()
+    return fig
 
 def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
     """Draw the 2D projections of an event, Z-X and Z-Y"""
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     plt.subplot(121)
     kwargs = dict(interpolation='none', aspect='auto', origin='lower', cmap='jet')
     plt.imshow(event.sum(axis=1).T, **kwargs)
@@ -50,6 +51,7 @@ def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
     plt.autoscale(False)
     if truthx is not None:
         plt.plot(np.arange(event.shape[0]-0.5), truthx-0.5, 'w-')
+    return fig
 
 def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
                   pred_threshold=0.1, pred_alpha=0.2,
@@ -139,7 +141,7 @@ def draw_input_and_pred(event_input, event_pred, figsize=(9,4), mask_ranges=None
 
 def draw_train_history(history, draw_val=True, figsize=(12,5)):
     """Make plots of training and validation losses and accuracies"""
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     # Plot loss
     plt.subplot(121)
     plt.plot(history.epoch, history.history['loss'], label='Training set')
@@ -159,3 +161,4 @@ def draw_train_history(history, draw_val=True, figsize=(12,5)):
     plt.title('Training accuracy')
     plt.legend(loc=0)
     plt.tight_layout()
+    return fig
