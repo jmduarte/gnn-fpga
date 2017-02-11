@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+"""
+THIS SCRIPT IS DEPRECATED
+
+Use the other scripts, e.g. runLSTM.py, instead.
+"""
+
 # System imports
 import math
 import logging
