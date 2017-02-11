@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
+from toydata import track_hit_coords
+
 def draw_layer(ax, data, title=None, **kwargs):
     """Draw one detector layer as an image"""
     ax.imshow(data.T, interpolation='none', aspect='auto',
-              origin='lower', **kwargs)
+              cmap='jet', origin='lower', **kwargs)
     if title is not None:
         ax.set_title(title)
 
@@ -33,9 +35,7 @@ def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
     """Draw the 2D projections of an event, Z-X and Z-Y"""
     plt.figure(figsize=figsize)
     plt.subplot(121)
-    kwargs = dict(interpolation='none',
-                  aspect='auto',
-                  origin='lower')
+    kwargs = dict(interpolation='none', aspect='auto', origin='lower', cmap='jet')
     plt.imshow(event.sum(axis=1).T, **kwargs)
     plt.xlabel('detector layer')
     plt.ylabel('pixel')
@@ -91,9 +91,11 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
 
     # Draw the predictions on each detector plane
     if prediction is not None:
-        # Surface grid coordinates, including endpoints
+        # Surface grid coordinates, including endpoints. Note that we transpose the
+        # coordinate arrays so that the first dimension gives the coordinates along
+        # the row in X, which matches the way I represent my model predictions.
         grid_idx = np.arange(event.shape[1]+1)
-        gridx, gridy = np.meshgrid(grid_idx, grid_idx)
+        gridy, gridx = np.meshgrid(grid_idx, grid_idx)
         for i in layer_idx:
             colors = cmap(prediction[i])
             # Set the global transparency of the prediction plane
@@ -103,6 +105,7 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
             ax.plot_surface(i, gridx, gridy, rstride=1, cstride=1,
                             facecolors=colors, shade=False)
     plt.tight_layout()
+    return fig, ax
 
 def draw_1d_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
     """
