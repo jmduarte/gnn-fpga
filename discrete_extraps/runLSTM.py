@@ -65,7 +65,7 @@ def main():
 
     args = parse_args()
 
-    from models import build_lstm_model, build_deep_lstm_model
+    from models import build_lstm_model, build_deep_lstm_model, build_bilstm_model
 
     # Logging
     logging.basicConfig(level=logging.INFO,
@@ -82,7 +82,8 @@ def main():
 
     # Build the model
     logging.info('Building model')
-    model_map = dict(default=build_lstm_model, deep=build_deep_lstm_model)
+    model_map = dict(default=build_lstm_model, deep=build_deep_lstm_model,
+                     bilstm=build_bilstm_model)
     model_func = model_map[args.model]
     model = model_func(args.num_det_layer, args.det_layer_size**2,
                        hidden_dim=args.num_hidden)
