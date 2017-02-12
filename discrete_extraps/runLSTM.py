@@ -28,9 +28,9 @@ def parse_args():
             help='Name the model to use')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
-    add_arg('--num-train-epoch', type=int, default=10,
+    add_arg('--num-epoch', type=int, default=10,
             help='Number of epochs in which to record training history')
-    add_arg('--num-test', type=int, default=51200,
+    add_arg('-t', '--num-test', type=int, default=51200,
             help='Number of events to simulate for testing')
     add_arg('-o', '--output-dir',
             help='Directory to save model and plots')
@@ -42,8 +42,6 @@ def parse_args():
             help='Number of track seeding detector layers')
     add_arg('--num-hidden', type=int, default=512)
     add_arg('--batch-size', type=int, default=128)
-    #add_arg('--num-epoch', type=int, default=20)
-    #add_arg('--valid-frac', type=int, default=0.2)
     add_arg('--avg-bkg-tracks', type=int, default=3)
     add_arg('--noise-prob', type=float, default=0.01)
     return parser.parse_args()
@@ -92,11 +90,12 @@ def main():
     
     # Train the model
     logging.info('Training the model')
-    events_per_epoch = args.num_train / args.num_train_epoch
+    events_per_epoch = args.num_train / args.num_epoch
     bgen = batch_generator(args.batch_size, det_shape, args.num_seed_layer,
                            args.avg_bkg_tracks, args.noise_prob)
     history = model.fit_generator(bgen, samples_per_epoch=events_per_epoch,
-                                  nb_epoch=args.num_train_epoch)
+                                  nb_epoch=args.num_epoch)
+    logging.info('')
 
     # Create a test set
     logging.info('Creating a test set')
