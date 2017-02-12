@@ -66,8 +66,7 @@ def build_conv_model(shape):
     #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
     #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
     # Final convolution without activation
-    #hidden = layers.Conv3D(1, 3, 3, 3, border_mode='same')(hidden)
-    hidden = layers.Conv3D(1, 5, 5, 5, border_mode='same')(hidden)
+    hidden = layers.Conv3D(1, 3, 3, 3, border_mode='same')(hidden)
     # Reshape to flatten each detector layer
     hidden = layers.Reshape((shape[0], shape[1]*shape[2]))(hidden)
     # Final softmax activation
