@@ -27,10 +27,12 @@ def parse_args():
             choices=['default', 'convae'], help='Name the model to use')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
-    add_arg('--num-epoch', type=int, default=10,
+    add_arg('-e', '--num-epoch', type=int, default=10,
             help='Number of epochs in which to record training history')
     add_arg('-t', '--num-test', type=int, default=51200,
             help='Number of events to simulate for testing')
+    add_arg('-b', '--batch-size', type=int, default=128,
+            help='Training batch size')
     add_arg('-o', '--output-dir',
             help='Directory to save model and plots')
     add_arg('--num-det-layer', type=int, default=10,
@@ -39,7 +41,6 @@ def parse_args():
             help='Width of the detector layers in pixels')
     add_arg('--num-seed-layer', type=int, default=3,
             help='Number of track seeding detector layers')
-    add_arg('--batch-size', type=int, default=128)
     add_arg('--avg-bkg-tracks', type=int, default=3)
     add_arg('--noise-prob', type=float, default=0.01)
     return parser.parse_args()
