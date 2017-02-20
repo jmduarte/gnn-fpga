@@ -8,8 +8,6 @@ import argparse
 
 # External imports
 import numpy as np
-from keras import models, layers
-from keras.regularizers import l2
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
@@ -48,6 +46,9 @@ def parse_args():
 
 def build_conv_model(shape):
     """Build the convolutional autoencoder model"""
+    from keras import models, layers
+    from keras.regularizers import l2
+
     inputs = layers.Input(shape=shape)
 
     # Need a 'channel' dimension for 3D convolution, though we have only 1 channel
@@ -78,6 +79,9 @@ def build_conv_model(shape):
 
 def build_convae_model(shape, dropout=0, l2reg=0, pool=(1,2,2)):
     """Build the CNN model"""
+    from keras import models, layers
+    from keras.regularizers import l2
+
     inputs = layers.Input(shape=shape)
 
     # Need a 'channel' dimension for 3D convolution,
