@@ -24,7 +24,7 @@ def parse_args():
     parser = argparse.ArgumentParser('simpleLSTM_2D')
     add_arg = parser.add_argument
     add_arg('-m', '--model', default='default',
-            choices=['default'], help='Name the model to use')
+            choices=['default', 'convae'], help='Name the model to use')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
     add_arg('--num-epoch', type=int, default=10,
@@ -161,7 +161,11 @@ def main():
 
     # Build the model
     logging.info('Building model')
-    model = build_conv_model(det_shape)
+    if args.model == 'convae':
+        build_model = build_convae_model
+    else:
+        build_model = build_conv_model
+    model = build_model(det_shape)
     model.summary()
     
     # Train the model
