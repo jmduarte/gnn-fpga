@@ -63,6 +63,31 @@ def flatten_layers(data):
     """Flattens each 2D detector layer into a 1D array"""
     return data.reshape((data.shape[0], data.shape[1], -1))
 
+def plot_event(event, pred, track, params, output_dir, file_prefix,
+               num_det_layer):
+    """Make plots for one event"""
+    # Get the track hit coordinates
+    sigx, sigy = track_hit_coords(params, np.arange(num_det_layer),
+                                  as_type=np.float32)
+    # Draw model inputs
+    filename = os.path.join(output_dir, file_prefix + '_inputs.png')
+    draw_layers(event, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw model outputs
+    filename = os.path.join(output_dir, file_prefix + '_outputs.png')
+    draw_layers(pred, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw input projections
+    filename = os.path.join(output_dir, file_prefix + '_inputProj.png')
+    draw_projections(event, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw output projections
+    filename = os.path.join(output_dir, file_prefix + '_outputProj.png')
+    draw_projections(pred, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw the 3D plot
+    filename = os.path.join(output_dir, file_prefix + '_plot3d.png')
+    fig, ax = draw_3d_event(event, track, params, pred,
+                            pred_threshold=0.01)
+    fig.savefig(filename)
+    plt.close('all')
+
 def main():
 
     args = parse_args()
@@ -133,34 +158,11 @@ def main():
 
         # Plot the first 5 events from the test set
         for i in range(5):
-
             event, track, params = test_events[i], test_tracks[i], test_params[i]
             pred = test_preds[i].reshape(det_shape)
-
-            # Get the track hit coordinates
-            sigx, sigy = track_hit_coords(params, np.arange(args.num_det_layer),
-                                          as_type=np.float32)
-
-            # Draw model inputs
-            filename = os.path.join(args.output_dir, 'ev%i_inputs.png' % i)
-            draw_layers(event, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw model outputs
-            filename = os.path.join(args.output_dir, 'ev%i_outputs.png' % i)
-            draw_layers(pred, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw input projections
-            filename = os.path.join(args.output_dir, 'ev%i_inputProj.png' % i)
-            draw_projections(event, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw output projections
-            filename = os.path.join(args.output_dir, 'ev%i_outputProj.png' % i)
-            draw_projections(pred, truthx=sigx, truthy=sigy).savefig(filename)
-
-            # Draw the 3D plot
-            filename = os.path.join(args.output_dir, 'ev%i_plot3d.png' % i)
-            fig, ax = draw_3d_event(event, track, params, pred,
-                                    pred_threshold=0.01)
-            fig.savefig(filename)
-
-            plt.close('all')
+            plot_event(event, pred, track, params,
+                       args.output_dir, 'ev%i' % i,
+                       args.num_det_layer)
 
     logging.info('All done!')
 
