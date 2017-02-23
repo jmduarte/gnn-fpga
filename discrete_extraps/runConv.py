@@ -45,89 +45,6 @@ def parse_args():
     add_arg('--noise-prob', type=float, default=0.01)
     return parser.parse_args()
 
-def build_conv_model(shape):
-    """Build the convolutional autoencoder model"""
-    from keras import models, layers
-    from keras.regularizers import l2
-
-    inputs = layers.Input(shape=shape)
-
-    # Need a 'channel' dimension for 3D convolution, though we have only 1 channel
-    hidden = layers.Reshape((1,)+shape)(inputs)
-
-    # 3D convolutional layers
-    conv_args = dict(border_mode='same', activation='relu')
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    # Final convolution without activation
-    hidden = layers.Conv3D(1, 3, 3, 3, border_mode='same')(hidden)
-    # Reshape to flatten each detector layer
-    hidden = layers.Reshape((shape[0], shape[1]*shape[2]))(hidden)
-    # Final softmax activation
-    outputs = layers.TimeDistributed(layers.Activation('softmax'))(hidden)
-    # Compile the model
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss='categorical_crossentropy', optimizer='Nadam', metrics=['accuracy'])
-    return model
-
-def build_convae_model(shape, dropout=0, l2reg=0, pool=(1,2,2)):
-    """Build the CNN model"""
-    from keras import models, layers
-    from keras.regularizers import l2
-
-    inputs = layers.Input(shape=shape)
-
-    # Need a 'channel' dimension for 3D convolution,
-    # though we have only 1 channel initially.
-    hidden = layers.Reshape((1,)+shape)(inputs)
-
-    # 3D convolutional layers
-    conv_args = dict(border_mode='same', activation='relu')
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(16, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.Conv3D(16, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(32, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(64, 3, 3, 3, **conv_args)(hidden)
-    hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(96, 3, 2, 2, **conv_args)(hidden)
-    hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(128, 3, 1, 1, **conv_args)(hidden)
-    # Permute dimensions to group detector layers:
-    # (channels, det_layers, w, w) -> (det_layers, channels, w, w)
-    PermuteLayer = layers.Permute((2, 1, 3, 4))
-    hidden = PermuteLayer(hidden)
-    # Reshape to flatten each detector layer: (det_layers, -1)
-    perm_shape = PermuteLayer.output_shape
-    flat_shape = (perm_shape[1], np.prod(perm_shape[2:]))
-    hidden = layers.Reshape(flat_shape)(hidden)
-    # Output softmax
-    outputs = layers.TimeDistributed(
-        layers.Dense(shape[1]*shape[2], activation='softmax',
-                     W_regularizer=l2(l2reg))
-        )(hidden)
-    # Compile the model
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='Nadam', metrics=['accuracy'])
-    return model
-
 def flatten_layers(data):
     """Flattens each 2D detector layer into a 1D array"""
     return data.reshape((data.shape[0], data.shape[1], -1))
@@ -161,6 +78,7 @@ def main():
     np.random.seed(2017)
 
     # Build the model
+    from models import build_conv_model, build_convae_model
     logging.info('Building model')
     if args.model == 'convae':
         build_model = build_convae_model
