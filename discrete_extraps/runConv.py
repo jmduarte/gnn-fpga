@@ -116,7 +116,8 @@ def main():
                                        num_seed_layers=args.num_seed_layer)
     # Hit classification accuracy
     test_scores = test_preds * flatten_layers(test_events)
-    hit_accuracy = calc_hit_accuracy(test_scores, test_target)
+    hit_accuracy = calc_hit_accuracy(test_scores, test_target,
+                                     num_seed_layers=args.num_seed_layer)
     logging.info('Accuracy of predicted pixel: %g' % pixel_accuracy)
     logging.info('Accuracy of classified hit: %g' % hit_accuracy)
 
