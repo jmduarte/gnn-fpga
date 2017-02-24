@@ -123,6 +123,9 @@ def main():
     if args.output_dir is not None:
         logging.info('Saving outputs to %s' % args.output_dir)
 
+        # Save the model to hdf5
+        model.save(os.path.join(args.output_dir, 'model.h5'))
+
         # Plot training history
         filename = os.path.join(args.output_dir, 'training.png')
         draw_train_history(history, draw_val=False).savefig(filename)
