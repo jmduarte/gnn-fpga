@@ -4,14 +4,14 @@ import theano.tensor.nlinalg as L
 
 def covariance_from_network_params(params):
     """Parameterization of a 2x2 covariance matrix using three 
-        real numbers: http://www.inference.eng.cam.ac.uk/mackay/covariance.pdf
-        I'm using the second parameterization given there.
+        real numbers: log(variance1), log(variance2), 
+        and arctanh(correlation).
         Input: vector of length 3
         Output: vector [variance1, covariance, variance2]"""
-    return T.exp(params[2]) * T.stack( [
-            T.exp(params[0]) * T.cosh(params[1]),
-            T.sinh(params[1]),
-            T.exp(-params[0]) * T.cosh(params[1]) ] )
+    variance1 = T.exp(params[0])
+    variance2 = T.exp(params[1])
+    corr = T.tanh(params[2])
+    return T.stack( [ variance1, corr*T.sqrt(variance1*variance2), variance2 ] )
 
 def _covariance_from_network_outputs(outputs):
     """Runs covariance_from_network_params on each event in the batch"""
@@ -20,8 +20,7 @@ def _covariance_from_network_outputs(outputs):
 
 def covariance_from_network_outputs(outputs):
     """Parameterization of a 2x2 covariance matrix using three 
-        real numbers: http://www.inference.eng.cam.ac.uk/mackay/covariance.pdf
-        I'm using the second parameterization given there.
+        real numbers.
         Input: tensor of shape (batch_size, num_tracks, 3)
         Output: tensor of the same shape, where the three 
             parameters represent [variance1, covariance, variance2]"""
@@ -41,7 +40,7 @@ def minus_two_log_gauss_likelihood_2D(residuals, covariance_values):
     cov = covariance_matrix_2D(covariance_values)
     det = L.Det()(cov)
     precis = L.MatrixInverse()(cov)
-    term1 = T.dot( T.transpose(residuals), T.dot( precis, residuals )) 
+    term1 = T.dot( T.transpose(residuals), T.dot( precis, residuals ))
     term2 = T.log( det )
     return term1 + term2
 
