@@ -158,6 +158,7 @@ class PretrainableModel(object):
            pretrain_layers (list of keras layers): layers to pretrain
            track_pred_model (keras model): model predicting track parameters
            full_model (keras model): full model, including covariance matrix predictor
+           conv_model (keras model): convolutional layers of the model
            track_pred_gen, full_gen: generators yielding batches of training data
                for training track_pred_model and full_model, respectively
            det_shape: tuple of integers (det_depth, det_width)
@@ -192,6 +193,7 @@ class PretrainableModel(object):
         layer = layers.Convolution2D(32, 3, 3, border_mode='same')(layer)
         pretrain_layers.append(layer)
         layer = layers.Activation('relu')(layer)
+        self.conv_model = models.Model(input=input_layer, output=layer)
         layer = layers.Flatten()(layer)
     
         layer_tracks = layers.Dense(400)(layer)
@@ -287,3 +289,67 @@ def make_qq_plot(mahalanobis_vals):
     plt.axis([0,10,0,10])
     plt.plot(ref, ref, 'k--')
     plt.show()
+
+def get_layer_by_name(model, layer_name):
+    """Finds the layer with specified name.
+        model: keras model
+        layer_name: name of the layer to return
+        Returns: model layer with requested name.
+        Throws ValueError if layer is not found."""
+    layer = None
+    for lyr in model.layers:
+        if lyr.name == layer_name:
+            layer = lyr
+            break
+    if layer is None:
+        raise ValueError("Requested layer name {} not found".format(
+            layer_name))
+    return layer
+
+def get_visualization_function(layer, filter_num, input_img):
+    """Builds a function that computes the gradient of the 
+        desired convolutional filter's activation with respect to
+        an input image.
+        layer: keras convolutional layer
+        filter_num: index of the filter to visualize
+        input_img (keras tensor): model input image"""
+    loss = K.mean( layer.output[:, filter_num, :, :] )
+    grads = K.gradients(loss, input_img)[0]
+    grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-5)
+    iterate = K.function([input_img], [loss, grads])
+    return iterate
+
+def normalize_image(img):
+    """Converts image to have mean 0.5 and standard deviation 0.1.
+        Clips the image to [0,1]."""
+    img -= img.mean()
+    img /= (img.std() + 1e-5)
+    img *= 0.1
+    img += 0.5
+    img = np.clip(img, 0, 1)
+    return img
+
+def visualize_filter(model, layer_name, filter_num, 
+        det_shape=default_det_shape, n_steps=20, step=1):
+    """Finds an image that maximizes the activation of a given
+        convolutional filter.
+        Inspired by:
+        https://blog.keras.io/how-convolutional-neural-networks-see-the-world.html
+
+        model: keras model object containing the convolutional layer
+        layer_name: string 
+        filter_num: int
+        det_shape: tuple of ints (detector depth, detector width)
+        n_steps: number of steps to run gradient ascent for
+        step: learning rate for gradient ascent
+
+        Returns: numpy array representing the visualized filter image"""
+    input_img = model.layers[0].input
+    layer = get_layer_by_name(model, layer_name)
+    iterate = get_visualization_function(layer, filter_num, input_img)
+    input_data = np.random.random((1, 1, det_shape[0], det_shape[1]))
+    for _ in range(n_steps):
+        loss_val, grads_val = iterate([input_data])
+        input_data += grads_val * step
+    img = normalize_image( input_data[0,0,1:-1,1:-1] )
+    return img
