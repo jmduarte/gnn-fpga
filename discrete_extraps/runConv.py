@@ -25,6 +25,8 @@ def parse_args():
     add_arg = parser.add_argument
     add_arg('-m', '--model', default='default',
             choices=['default', 'convae'], help='Name the model to use')
+    add_arg('-z', '--hidden-dim', default=8,
+            help='Number of initial convolutional filters')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
     add_arg('-e', '--num-epoch', type=int, default=10,
@@ -73,7 +75,7 @@ def main():
     logging.info('Configuring with options: %s' % args)
     det_shape = (args.num_det_layer, args.det_layer_size, args.det_layer_size)
     logging.info('Detector shape: %s' % (det_shape,))
-    
+
     # Random seed
     np.random.seed(2017)
 
