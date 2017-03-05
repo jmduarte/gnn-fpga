@@ -26,12 +26,16 @@ def parse_args():
     add_arg('-m', '--model', default='default',
             choices=['default', 'deep', 'bilstm'],
             help='Name the model to use')
+    add_arg('-z', '--num-hidden', type=int, default=512,
+            help='Size of hidden dimensions')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
-    add_arg('--num-epoch', type=int, default=10,
+    add_arg('-e', '--num-epoch', type=int, default=10,
             help='Number of epochs in which to record training history')
     add_arg('-t', '--num-test', type=int, default=51200,
             help='Number of events to simulate for testing')
+    add_arg('-b', '--batch-size', type=int, default=128,
+            help='Training batch size')
     add_arg('-o', '--output-dir',
             help='Directory to save model and plots')
     add_arg('--num-det-layer', type=int, default=10,
@@ -40,8 +44,6 @@ def parse_args():
             help='Width of the detector layers in pixels')
     add_arg('--num-seed-layer', type=int, default=3,
             help='Number of track seeding detector layers')
-    add_arg('--num-hidden', type=int, default=512)
-    add_arg('--batch-size', type=int, default=128)
     add_arg('--avg-bkg-tracks', type=int, default=3)
     add_arg('--noise-prob', type=float, default=0.01)
     return parser.parse_args()
@@ -60,6 +62,31 @@ def batch_generator(num_batch, det_shape, num_seed_layers,
 def flatten_layers(data):
     """Flattens each 2D detector layer into a 1D array"""
     return data.reshape((data.shape[0], data.shape[1], -1))
+
+def plot_event(event, pred, track, params, output_dir, file_prefix,
+               num_det_layer):
+    """Make plots for one event"""
+    # Get the track hit coordinates
+    sigx, sigy = track_hit_coords(params, np.arange(num_det_layer),
+                                  as_type=np.float32)
+    # Draw model inputs
+    filename = os.path.join(output_dir, file_prefix + '_inputs.png')
+    draw_layers(event, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw model outputs
+    filename = os.path.join(output_dir, file_prefix + '_outputs.png')
+    draw_layers(pred, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw input projections
+    filename = os.path.join(output_dir, file_prefix + '_inputProj.png')
+    draw_projections(event, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw output projections
+    filename = os.path.join(output_dir, file_prefix + '_outputProj.png')
+    draw_projections(pred, truthx=sigx, truthy=sigy).savefig(filename)
+    # Draw the 3D plot
+    filename = os.path.join(output_dir, file_prefix + '_plot3d.png')
+    fig, ax = draw_3d_event(event, track, params, pred,
+                            pred_threshold=0.01)
+    fig.savefig(filename)
+    plt.close('all')
 
 def main():
 
@@ -118,12 +145,16 @@ def main():
                                        num_seed_layers=args.num_seed_layer)
     # Hit classification accuracy
     test_scores = test_preds * flatten_layers(test_events)
-    hit_accuracy = calc_hit_accuracy(test_scores, test_target)
+    hit_accuracy = calc_hit_accuracy(test_scores, test_target,
+                                     num_seed_layers=args.num_seed_layer)
     logging.info('Accuracy of predicted pixel: %g' % pixel_accuracy)
     logging.info('Accuracy of classified hit: %g' % hit_accuracy)
 
     if args.output_dir is not None:
         logging.info('Saving outputs to %s' % args.output_dir)
+
+        # Save the model to hdf5
+        model.save(os.path.join(args.output_dir, 'model.h5'))
 
         # Plot training history
         filename = os.path.join(args.output_dir, 'training.png')
@@ -131,34 +162,11 @@ def main():
 
         # Plot the first 5 events from the test set
         for i in range(5):
-
             event, track, params = test_events[i], test_tracks[i], test_params[i]
             pred = test_preds[i].reshape(det_shape)
-
-            # Get the track hit coordinates
-            sigx, sigy = track_hit_coords(params, np.arange(args.num_det_layer),
-                                          as_type=np.float32)
-
-            # Draw model inputs
-            filename = os.path.join(args.output_dir, 'ev%i_inputs.png' % i)
-            draw_layers(event, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw model outputs
-            filename = os.path.join(args.output_dir, 'ev%i_outputs.png' % i)
-            draw_layers(pred, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw input projections
-            filename = os.path.join(args.output_dir, 'ev%i_inputProj.png' % i)
-            draw_projections(event, truthx=sigx, truthy=sigy).savefig(filename)
-            # Draw output projections
-            filename = os.path.join(args.output_dir, 'ev%i_outputProj.png' % i)
-            draw_projections(pred, truthx=sigx, truthy=sigy).savefig(filename)
-
-            # Draw the 3D plot
-            filename = os.path.join(args.output_dir, 'ev%i_plot3d.png' % i)
-            fig, ax = draw_3d_event(event, track, params, pred,
-                                    pred_threshold=0.01)
-            fig.savefig(filename)
-
-            plt.close('all')
+            plot_event(event, pred, track, params,
+                       args.output_dir, 'ev%i' % i,
+                       args.num_det_layer)
 
     logging.info('All done!')
 

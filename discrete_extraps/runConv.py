@@ -8,8 +8,6 @@ import argparse
 
 # External imports
 import numpy as np
-from keras import models, layers
-from keras.regularizers import l2
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
@@ -26,13 +24,15 @@ def parse_args():
     parser = argparse.ArgumentParser('simpleLSTM_2D')
     add_arg = parser.add_argument
     add_arg('-m', '--model', default='default',
-            choices=['default'], help='Name the model to use')
+            choices=['default', 'convae'], help='Name the model to use')
     add_arg('-n', '--num-train', type=int, default=640000,
             help='Number of events to simulate for training')
-    add_arg('--num-epoch', type=int, default=10,
+    add_arg('-e', '--num-epoch', type=int, default=10,
             help='Number of epochs in which to record training history')
     add_arg('-t', '--num-test', type=int, default=51200,
             help='Number of events to simulate for testing')
+    add_arg('-b', '--batch-size', type=int, default=128,
+            help='Training batch size')
     add_arg('-o', '--output-dir',
             help='Directory to save model and plots')
     add_arg('--num-det-layer', type=int, default=10,
@@ -41,87 +41,9 @@ def parse_args():
             help='Width of the detector layers in pixels')
     add_arg('--num-seed-layer', type=int, default=3,
             help='Number of track seeding detector layers')
-    add_arg('--batch-size', type=int, default=128)
     add_arg('--avg-bkg-tracks', type=int, default=3)
     add_arg('--noise-prob', type=float, default=0.01)
     return parser.parse_args()
-
-def build_conv_model(shape):
-    """Build the convolutional autoencoder model"""
-    inputs = layers.Input(shape=shape)
-
-    # Need a 'channel' dimension for 3D convolution, though we have only 1 channel
-    hidden = layers.Reshape((1,)+shape)(inputs)
-
-    # 3D convolutional layers
-    conv_args = dict(border_mode='same', activation='relu')
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    # Final convolution without activation
-    hidden = layers.Conv3D(1, 3, 3, 3, border_mode='same')(hidden)
-    # Reshape to flatten each detector layer
-    hidden = layers.Reshape((shape[0], shape[1]*shape[2]))(hidden)
-    # Final softmax activation
-    outputs = layers.TimeDistributed(layers.Activation('softmax'))(hidden)
-    # Compile the model
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss='categorical_crossentropy', optimizer='Nadam', metrics=['accuracy'])
-    return model
-
-def build_convae_model(shape, dropout=0, l2reg=0, pool=(1,2,2)):
-    """Build the CNN model"""
-    inputs = layers.Input(shape=shape)
-
-    # Need a 'channel' dimension for 3D convolution,
-    # though we have only 1 channel initially.
-    hidden = layers.Reshape((1,)+shape)(inputs)
-
-    # 3D convolutional layers
-    conv_args = dict(border_mode='same', activation='relu')
-    hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(8, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    #hidden = layers.Dropout(dropout)(hidden)
-    hidden = layers.Conv3D(16, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.Conv3D(16, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    #hidden = layers.Dropout(dropout)(hidden)
-    #hidden = layers.Conv3D(32, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    #hidden = layers.Dropout(dropout)(hidden)
-    #hidden = layers.Conv3D(64, 3, 3, 3, **conv_args)(hidden)
-    #hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    #hidden = layers.Dropout(dropout)(hidden)
-    #hidden = layers.Conv3D(96, 3, 2, 2, **conv_args)(hidden)
-    #hidden = layers.MaxPooling3D(pool_size=pool)(hidden)
-    #hidden = layers.Dropout(dropout)(hidden)
-    #hidden = layers.Conv3D(128, 3, 1, 1, **conv_args)(hidden)
-    # Permute dimensions to group detector layers:
-    # (channels, det_layers, w, w) -> (det_layers, channels, w, w)
-    PermuteLayer = layers.Permute((2, 1, 3, 4))
-    hidden = PermuteLayer(hidden)
-    # Reshape to flatten each detector layer: (det_layers, -1)
-    perm_shape = PermuteLayer.output_shape
-    flat_shape = (perm_shape[1], np.prod(perm_shape[2:]))
-    hidden = layers.Reshape(flat_shape)(hidden)
-    # Output softmax
-    outputs = layers.TimeDistributed(
-        layers.Dense(shape[1]*shape[2], activation='softmax',
-                     W_regularizer=l2(l2reg))
-        )(hidden)
-    # Compile the model
-    model = models.Model(input=inputs, output=outputs)
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='Nadam', metrics=['accuracy'])
-    return model
 
 def flatten_layers(data):
     """Flattens each 2D detector layer into a 1D array"""
@@ -156,8 +78,13 @@ def main():
     np.random.seed(2017)
 
     # Build the model
+    from models import build_conv_model, build_convae_model
     logging.info('Building model')
-    model = build_conv_model(det_shape)
+    if args.model == 'convae':
+        build_model = build_convae_model
+    else:
+        build_model = build_conv_model
+    model = build_model(det_shape)
     model.summary()
     
     # Train the model
@@ -189,12 +116,16 @@ def main():
                                        num_seed_layers=args.num_seed_layer)
     # Hit classification accuracy
     test_scores = test_preds * flatten_layers(test_events)
-    hit_accuracy = calc_hit_accuracy(test_scores, test_target)
+    hit_accuracy = calc_hit_accuracy(test_scores, test_target,
+                                     num_seed_layers=args.num_seed_layer)
     logging.info('Accuracy of predicted pixel: %g' % pixel_accuracy)
     logging.info('Accuracy of classified hit: %g' % hit_accuracy)
 
     if args.output_dir is not None:
         logging.info('Saving outputs to %s' % args.output_dir)
+
+        # Save the model to hdf5
+        model.save(os.path.join(args.output_dir, 'model.h5'))
 
         # Plot training history
         filename = os.path.join(args.output_dir, 'training.png')
