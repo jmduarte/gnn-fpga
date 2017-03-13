@@ -147,6 +147,58 @@ def make_pred_without_errors(model, n_tracks=1, det_shape=default_det_shape):
                     line[1]/slope_scale, line[0], det_shape) for line in test_pred ]), 0, 1)
     draw_input_and_pred(test_event[0], pred_event)
 
+def build_conv_model(det_shape=default_det_shape, n_tracks=1):
+    """Build current iteration of convolutional tracking model.
+        Returns tuple:
+          (full_model, track_pred_model, conv_model, pretrain_layers)
+          where:
+          -full_model is the entire model
+          -track_pred_model is the part that predicts track parameters
+            (excluding covariances)
+          -conv_model is the convolutional part only
+          -pretrain_layers is a list of layers for which trainable=False
+            should be set after training the track-finding portion 
+            of the model (if training that part separately)"""
+    pretrain_layers = []
+
+    input_layer = layers.Input(shape=(1, det_shape[0], det_shape[1]))
+    layer = layers.Convolution2D(8, 3, 3, border_mode='same')(input_layer)
+    pretrain_layers.append(layer)
+    layer = layers.Activation('relu')(layer)
+    layer = layers.Convolution2D(8, 3, 3, border_mode='same')(layer)
+    pretrain_layers.append(layer)
+    layer = layers.Activation('relu')(layer)
+    layer = layers.MaxPooling2D(pool_size=(2,2))(layer)
+    layer = layers.Convolution2D(32, 3, 3, border_mode='same')(layer)
+    pretrain_layers.append(layer)
+    layer = layers.Activation('relu')(layer)
+    layer = layers.Convolution2D(32, 3, 3, border_mode='same')(layer)
+    pretrain_layers.append(layer)
+    layer = layers.Activation('relu')(layer)
+    conv_model = models.Model(input=input_layer, output=layer)
+    layer = layers.Flatten()(layer)
+
+    layer_tracks = layers.Dense(400)(layer)
+    pretrain_layers.append(layer_tracks)
+    layer_tracks = layers.RepeatVector(n_tracks)(layer_tracks)
+    layer_tracks = layers.LSTM(400, return_sequences=True)(layer_tracks)
+    pretrain_layers.append(layer_tracks)
+    output_layer_tracks = layers.TimeDistributed(layers.Dense(2))(layer_tracks) # track parameters
+    pretrain_layers.append(output_layer_tracks)
+    track_pred_model = models.Model(input=input_layer, output=output_layer_tracks)
+
+    layer_cov = layers.Dense(400)(layer)
+    layer_cov = layers.RepeatVector(n_tracks)(layer_cov)
+    layer_cov = layers.LSTM(400, return_sequences=True)(layer_cov)
+    layer_cov = layers.TimeDistributed(layers.Dense(3))(layer_cov) # track covariance matrix parameters
+    output_layer_cov = layers.Lambda(gauss_likelihood_loss.covariance_from_network_outputs)(layer_cov)
+
+    output_layer = layers.merge([output_layer_tracks, output_layer_cov], mode='concat', concat_axis=2)
+    full_model = models.Model(input=input_layer, output=output_layer)
+
+    return full_model, track_pred_model, conv_model, pretrain_layers
+    
+
 class PretrainableModel(object):
     """Class representing our tracking convnet model outputting both 
        track parameters and covariance matrices. Capable of pretraining
@@ -162,10 +214,13 @@ class PretrainableModel(object):
            track_pred_gen, full_gen: generators yielding batches of training data
                for training track_pred_model and full_model, respectively
            det_shape: tuple of integers (det_depth, det_width)
+           model_fn: function used to construct the model. Signature should be:
+                model_fn(det_shape, n_layers)
            """
     
     def __init__(self, n_tracks, pretrain=True, batch_size=default_batch_size, 
-            epoch_size=default_epoch_size, det_shape=default_det_shape):
+            epoch_size=default_epoch_size, det_shape=default_det_shape,
+            model_fn=build_conv_model):
         self.n_tracks = n_tracks
         self.epoch_size = epoch_size
         self.pretrain = pretrain
@@ -174,56 +229,32 @@ class PretrainableModel(object):
                 det_shape=det_shape, batch_size=batch_size)
         self.full_gen = gen_n_tracks(n_tracks=n_tracks, 
                 det_shape=det_shape, batch_size=batch_size)
+        self.model_fn = model_fn
         self.set_model()
         
     def set_model(self):
-        pretrain_layers = []
-
-        input_layer = layers.Input(shape=(1, self.det_shape[0], self.det_shape[1]))
-        layer = layers.Convolution2D(8, 3, 3, border_mode='same')(input_layer)
-        pretrain_layers.append(layer)
-        layer = layers.Activation('relu')(layer)
-        layer = layers.Convolution2D(8, 3, 3, border_mode='same')(layer)
-        pretrain_layers.append(layer)
-        layer = layers.Activation('relu')(layer)
-        layer = layers.MaxPooling2D(pool_size=(2,2))(layer)
-        layer = layers.Convolution2D(32, 3, 3, border_mode='same')(layer)
-        pretrain_layers.append(layer)
-        layer = layers.Activation('relu')(layer)
-        layer = layers.Convolution2D(32, 3, 3, border_mode='same')(layer)
-        pretrain_layers.append(layer)
-        layer = layers.Activation('relu')(layer)
-        self.conv_model = models.Model(input=input_layer, output=layer)
-        layer = layers.Flatten()(layer)
-    
-        layer_tracks = layers.Dense(400)(layer)
-        pretrain_layers.append(layer_tracks)
-        layer_tracks = layers.RepeatVector(self.n_tracks)(layer_tracks)
-        layer_tracks = layers.LSTM(400, return_sequences=True)(layer_tracks)
-        pretrain_layers.append(layer_tracks)
-        output_layer_tracks = layers.TimeDistributed(layers.Dense(2))(layer_tracks) # track parameters
-        pretrain_layers.append(output_layer_tracks)
-        self.track_pred_model = models.Model(input=input_layer, output=output_layer_tracks)
+        model_parts = self.model_fn(self.det_shape, self.n_tracks)
+        # We try to unpack full/track/conv models and pretrain layers.
+        # If we fail, assume the function returned track pred model only
+        try:
+            (self.full_model, self.track_pred_model, 
+                    self.conv_model, self.pretrain_layers) = model_parts
+        except TypeError: 
+            self.track_pred_model = model_parts
+            self.full_model, self.conv_model, self.pretrain_layers = None, None, None
         self.compile_track_pred_model()
-    
-        layer_cov = layers.Dense(400)(layer)
-        layer_cov = layers.RepeatVector(self.n_tracks)(layer_cov)
-        layer_cov = layers.LSTM(400, return_sequences=True)(layer_cov)
-        layer_cov = layers.TimeDistributed(layers.Dense(3))(layer_cov) # track covariance matrix parameters
-        output_layer_cov = layers.Lambda(gauss_likelihood_loss.covariance_from_network_outputs)(layer_cov)
-    
-        output_layer = layers.merge([output_layer_tracks, output_layer_cov], mode='concat', concat_axis=2)
-        self.full_model = models.Model(input=input_layer, output=output_layer)
-        
-        self.pretrain_layers = pretrain_layers
         self.compile_full_model()
-        
+    
     def compile_track_pred_model(self):
-        self.track_pred_model.compile(loss='mean_squared_error', optimizer='Adam')
+        if self.track_pred_model:
+            adam = optimizers.Adam(clipnorm=1.)
+            self.track_pred_model.compile(loss='mean_squared_error', optimizer=adam)
         
     def compile_full_model(self):
-        adam = optimizers.Adam(clipnorm=5)
-        self.full_model.compile(loss=gauss_likelihood_loss.gauss_likelihood_loss_2D, optimizer=adam)
+        if self.full_model:
+            adam = optimizers.Adam(clipnorm=1.)
+            self.full_model.compile(loss=gauss_likelihood_loss.gauss_likelihood_loss_2D, 
+                    optimizer=adam)
         
     def freeze_pretrain_layers(self, freeze=True):
         """If freeze=True, freeze weights on all pretrain layers.
