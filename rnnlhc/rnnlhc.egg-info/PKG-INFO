@@ -1,0 +1,15 @@
+Metadata-Version: 1.0
+Name: rnnlhc
+Version: 0.0.0
+Summary: Fitting Recurrent networks to LHC data
+Home-page: UNKNOWN
+Author: UNKNOWN
+Author-email: UNKNOWN
+License: UNKNOWN
+Description: # README #
+        
+        We will explore fitting LSTMs and feed forward networks to model trajectories of particles for tracking.
+        
+        ### Contributors ###
+        Mayur Mudigonda, Paolo Calafiura, Steve Farrell
+Platform: UNKNOWN
