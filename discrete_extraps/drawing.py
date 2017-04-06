@@ -133,11 +133,12 @@ def draw_2d_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
         plt.plot(mask_ranges[:,1], 'w:')
 
 def draw_2d_input_and_pred(event_input, event_pred, figsize=(9,4), mask_ranges=None):
-    plt.figure(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
     plt.subplot(121)
     draw_2d_event(event_input, title='Input', mask_ranges=mask_ranges)
     plt.subplot(122)
     draw_2d_event(event_pred, title='Model prediction', mask_ranges=mask_ranges)
+    return fig
 
 def draw_train_history(history, draw_val=True, figsize=(12,5)):
     """Make plots of training and validation losses and accuracies"""
