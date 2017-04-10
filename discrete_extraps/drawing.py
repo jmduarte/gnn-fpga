@@ -55,6 +55,7 @@ def draw_projections(event, truthx=None, truthy=None, figsize=(12,5)):
 
 def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
                   pred_threshold=0.1, pred_alpha=0.2,
+                  xlabel='detector layer', ylabel='pixel x', zlabel='pixel y',
                   color_map='rainbow'):
     """
     Draw 3D visualization of an event, a signal track, and a model prediction.
@@ -65,9 +66,9 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
     # Setup the Axes3D
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.set_xlabel('detector layer')
-    ax.set_ylabel('pixel x')
-    ax.set_zlabel('pixel y')
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
     ax.set_xlim(0, event.shape[0]-1)
     ax.set_ylim(0, event.shape[1])
     ax.set_zlim(0, event.shape[2])
