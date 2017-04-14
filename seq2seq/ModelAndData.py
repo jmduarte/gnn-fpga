@@ -244,7 +244,7 @@ class ModelDealer:
         self.save_dataset( data, target, truth, fh5 )
         
         
-    def convert_files(self,specific,
+    def convert_files(self,specific=None,
                       force=False):
         pattern = '%s%s.csv'%(self.base , '*' if not specific else specific)
         extra = self.model_label
