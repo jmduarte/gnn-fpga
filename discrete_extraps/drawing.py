@@ -99,7 +99,7 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
         # the row in X, which matches the way I represent my model predictions.
         grid_idx = np.arange(event.shape[1]+1)
         gridy, gridx = np.meshgrid(grid_idx, grid_idx)
-        for i in layer_idx:
+        for i in np.arange(event.shape[0]):
             colors = cmap(prediction[i])
             # Set the global transparency of the prediction plane
             colors[:,:,3] = pred_alpha
