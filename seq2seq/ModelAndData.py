@@ -8,7 +8,7 @@ import pandas as pd
 import itertools
 from collections import defaultdict
 
-if True:
+if True:#False:#True:
     ## CPU only
     os.environ['KERAS_BACKEND']='tensorflow'
     os.unsetenv('CUDA_VISIBLE_DEVICES')
@@ -25,12 +25,14 @@ from keras.layers.advanced_activations import ELU
 
 class DatasetDealer:
     def __init__(self, **params):
-        self.filename = 'public_train.csv'
+        self.filename = params['filename'] if 'filename' in params else 'public_train.csv'
+        self.label = params['label'] if 'label' in params else ''
         self.tf = None
         self.all_phi = [ 9802,  21363,  38956,  53533,  68110,  50894,  70624,  95756, 125664]
         
     def create_bank(self, parse=1000):
-        if self.tf != None: return
+        if type(self.tf) == pd.core.frame.DataFrame:
+            return
         print "Retrieving a",parse,"track bank. This can take a while"
         df = pd.read_csv(self.filename)        
         max_count=0
@@ -96,7 +98,7 @@ class DatasetDealer:
     def create_dataset(self,
                        N=10000,
                        mu=10):
-        self.base = "dataset_mu%d_"%mu
+        self.base = "dataset%s_mu%d_"%(self.label,mu)
         per_file=1000
         for i_batch in itertools.count():
             out_file = "%s%d.csv"%(self.base,i_batch+1)
@@ -118,8 +120,8 @@ class ModelDealer:
         self.base = 'dataset_mu10_' if not 'base' in params else params['base']
         self.all_phi= [ 9802,  21363,  38956,  53533,  68110,  50894,  70624,  95756, 125664]
         self.radiuses = [38, 84, 154, 212, 270, 405, 562, 762, 1000 ]
-        self.n_layers=4
-        self.max_phi= self.all_phi[:4]#[ 9802,  21363,  38956 ,  53533 ]#,  68110,  50894,  70624,  95756, 125664]
+        self.n_layers= 4 if not 'n_layers' in params else params['n_layers']
+        self.max_phi= self.all_phi[:self.n_layers] 
         self.downcast=500 if not 'downcast' in params else params['downcast']
 
         self.hits_per_layer = 20
@@ -130,7 +132,7 @@ class ModelDealer:
                                               self.hits_per_layer,
                                               self.tracks_candidates )
         if self.downcast:
-            self.downcast_phi = [self.downcast for i in self.max_phi]
+            self.downcast_phi = [min(self.downcast,i) for i in self.max_phi] ## downcast only, no upcasting
             self.model_label += '_DC%s'%self.downcast
         else:
             self.downcast_phi = self.max_phi
@@ -143,17 +145,18 @@ class ModelDealer:
         #print ievent
         sub_data = df.loc[df['event_id']==ievent]
         data = np.full((self.n_layers, self.hits_per_layer), self.masking_char)
-        #trackid = np.full((self.n_layers, self.hits_per_layer), self.masking_char)
         target = np.full( (self.tracks_candidates, self.n_layers), self.masking_char)
         truth = defaultdict(list)
-        large_target = []
+        #large_target = []
         #very_large_target = []
         for layer,w in enumerate(self.downcast_phi):
-            for h in range(self.tracks_candidates):
-                large_target.append( np.full((1,1), w).astype(int) ) ## the default is the layer len, meaning no hit category
+            for track in range(self.tracks_candidates):
+                target[track,layer] = w
+                #large_target.append( np.full((1,1), w).astype(int) ) ## the default is the layer len, meaning no hit category
                 #very_large_target.append( np.zeros((1,w)) )
                 
         per_layer = np.zeros( (self.n_layers,), dtype=int)
+        first_phis = [None]*self.tracks_candidates        
         for layer,iphi,aclass in zip(sub_data['layer'].values,sub_data['iphi'].values,sub_data['cluster_id'].values ):
             norm_phi = iphi / float(self.all_phi[layer])
 
@@ -171,20 +174,34 @@ class ModelDealer:
             downcast_iphi = int(norm_phi*self.downcast_phi[layer]) if self.downcast else iphi
                     
             if aclass>=self.tracks_candidates: continue ## more track than the model can handle
+            if first_phis[aclass] ==None: first_phis[aclass] = norm_phi
+            
             if norm_out:
                 target[aclass,layer] = norm_phi ## for a regression type of thing
             else:
                 target[aclass,layer] = downcast_iphi ## for sparse categorical cross entropy style
-                lin_index = layer*self.tracks_candidates + aclass
-                large_target[lin_index][0,0] = downcast_iphi
-                
+                #lin_index = layer*self.tracks_candidates + aclass
+                #large_target[lin_index][0,0] = downcast_iphi
+
+        ## do some ordering
+        for layer,w in enumerate(self.downcast_phi):
+            ## order in increasing per layer
+            with_data = np.where( data[layer,:] != self.masking_char)
+            in_sort = np.argsort( data[layer,:][with_data] )
+            data[layer,:len(in_sort)] = data[layer, in_sort ]
+        ## order track tragets by phi of first hit
+        in_sort = np.argsort( first_phis )
+        target = target[in_sort,:]
+            
         data = np.expand_dims(data, 0)
         if not norm_out:
             target = target.astype(int)
                             
         vtruth = [] ## a list of lists
         for i,thits in truth.items(): vtruth.append( thits )
-        return data, large_target, vtruth
+        flat_target = list([ target[h,layer].reshape(1,1) for layer,h in itertools.product( range(self.n_layers), range(self.tracks_candidates)) ])
+        return data, flat_target, vtruth
+        #return data, large_target, vtruth
 
     def make_dataset(self,df,limit=None):
         n_events = len(set(df['event_id'].values)) if not limit else limit
