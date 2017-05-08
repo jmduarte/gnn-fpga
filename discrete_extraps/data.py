@@ -133,10 +133,6 @@ def generate_straight_tracks(n, det_shape, entry_range=None, exit_range=None):
         ndarray of detector data for n single-track events. The shape is
         (n, det_shape[0], det_shape[1]).
     """
-    #tracks = [np.expand_dims(generate_straight_track(det_shape), 0)
-    #          for i in range(n)]
-    #return np.concatenate(tracks, axis=0)
-
     # Initialize the data
     det_depth, det_width = det_shape
     data = np.zeros((n, det_depth, det_width))

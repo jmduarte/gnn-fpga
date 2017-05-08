@@ -99,7 +99,7 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
         # the row in X, which matches the way I represent my model predictions.
         grid_idx = np.arange(event.shape[1]+1)
         gridy, gridx = np.meshgrid(grid_idx, grid_idx)
-        for i in layer_idx:
+        for i in np.arange(event.shape[0]):
             colors = cmap(prediction[i])
             # Set the global transparency of the prediction plane
             colors[:,:,3] = pred_alpha
@@ -110,7 +110,8 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
     plt.tight_layout()
     return fig, ax
 
-def draw_2d_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
+def draw_2d_event(event, title=None, mask_ranges=None, mask_style='w:',
+                  tight=True, **kwargs):
     """
     Draw and format one 2D detector event with matplotlib.
     Params:
@@ -130,8 +131,8 @@ def draw_2d_event(event, title=None, mask_ranges=None, tight=True, **kwargs):
     if tight:
         plt.tight_layout()
     if mask_ranges is not None:
-        plt.plot(mask_ranges[:,0], 'w:')
-        plt.plot(mask_ranges[:,1], 'w:')
+        plt.plot(mask_ranges[:,0], mask_style)
+        plt.plot(mask_ranges[:,1], mask_style)
 
 def draw_2d_input_and_pred(event_input, event_pred, figsize=(9,4),
                            cmap='jet', mask_ranges=None):
