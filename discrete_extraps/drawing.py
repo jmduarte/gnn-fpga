@@ -135,12 +135,14 @@ def draw_2d_event(event, title=None, mask_ranges=None, mask_style='w:',
         plt.plot(mask_ranges[:,1], mask_style)
 
 def draw_2d_input_and_pred(event_input, event_pred, figsize=(9,4),
-                           cmap='jet', mask_ranges=None):
+                           cmap='jet', mask_ranges=None, mask_style='k:',):
     fig = plt.figure(figsize=figsize)
     plt.subplot(121)
-    draw_2d_event(event_input, title='Input', cmap=cmap, mask_ranges=mask_ranges)
+    draw_2d_event(event_input, title='Input', cmap=cmap,
+                  mask_ranges=mask_ranges, mask_style=mask_style)
     plt.subplot(122)
-    draw_2d_event(event_pred, title='Model prediction', cmap=cmap, mask_ranges=mask_ranges)
+    draw_2d_event(event_pred, title='Model prediction', cmap=cmap,
+                  mask_ranges=mask_ranges, mask_style=mask_style)
     return fig
 
 def draw_train_history(history, draw_val=True, figsize=(12,5)):
