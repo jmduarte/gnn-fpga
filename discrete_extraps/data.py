@@ -183,10 +183,13 @@ def generate_track_bkg(n, det_shape, tracks_per_event=2, skip_layers=5):
         (n, det_shape[0], det_shape[1]).
     """
     # Combine single-track events to make multi-track events
-    events = sum(generate_straight_tracks(n, det_shape)
+    if tracks_per_event > 0:
+        events = sum(generate_straight_tracks(n, det_shape)
                  for i in range(tracks_per_event))
-    # Zero out the skipped layers
-    events[:,0:skip_layers,:] = 0
+        # Zero out the skipped layers
+        events[:,0:skip_layers,:] = 0
+    else:
+        events = np.zeros((n,) + det_shape)
     return events
 
 def sim_trap_straight_track(m, b, det_widths):
