@@ -40,20 +40,20 @@ def proj_2d_plot(data,reconstr,savestr='proj_',samples=15):
         for jj in np.arange(3):
             plt.subplot(int('13'+str(jj+1)))
             pt_d, = plt.plot(data[ii,1:,jj],data[ii,1:,np.mod(jj+1,3)],'r+',label='data')
-            plt.hold(True)
             line_d,= plt.plot(data[ii,1:,jj],data[ii,1:,np.mod(jj+1,3)],'r')
             pt_r, = plt.plot(reconstr[ii,:,jj],reconstr[ii,:,np.mod(jj+1,3)],'g*',label='reconstr')
             line_r, = plt.plot(reconstr[ii,:,jj],reconstr[ii,:,np.mod(jj+1,3)],'g')
             plt.legend(handles=[pt_d,pt_r],loc=0)
             plt.locator_params(nbins=10)
-            delta = 0.03
+            delta = 0.001
+            #delta = 0.0
             plt.axis([data[ii,1:,jj].min()+ (-delta) ,data[ii,1:,jj].max() + delta ,data[ii,1:,np.mod(jj+1,3)].min() - delta ,data[ii,1:,np.mod(jj+1,3)].max() + delta])
             if jj == 0:
-              plt.xlabel('R Phi vs Z')
+              plt.xlabel('R vs Phi')
             elif jj == 1:
-              plt.xlabel('Z vs R')
+              plt.xlabel('Phi vs Z')
             else:
-              plt.xlabel('R vs R Phi')
+              plt.xlabel('Z vs R')
         plt.savefig('png/'+savestr+str(ii)+'.png')
         plt.clf()
         plt.close()
@@ -75,3 +75,25 @@ def pre_process(data,max_data=None):
     return data,max_data
 
         
+def calc_eta(theta):
+    """Calculates eta from a theta value or flat array"""
+    return -1. * np.log(np.tan(theta / 2.))
+
+def calc_phi(rphi, r):
+    """Calculates phi from rphi"""
+    return rphi / r
+# I vectorize it to work on an array of arrays
+calc_phi = np.vectorize(calc_phi, otypes='O')
+
+def filter_samples(idx, *arrays):
+    """Apply a filter index to a list of arrays"""
+    return map(lambda x: x[idx], arrays)
+
+def filter_objects(idx, *arrays):
+    """
+    Apply array of filter indices to some object arrays.
+    Each input array should be an array of arrays (dtype='O').
+    """
+    filt_func = np.vectorize(lambda x: x[idx], otypes='O')
+    return map(lambda a: np.stack(filt_func(a)), arrays)
+

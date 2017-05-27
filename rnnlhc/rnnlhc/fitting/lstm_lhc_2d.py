@@ -57,7 +57,7 @@ class testrnn:
                 train_output.append(transform2)
             self.train_output = tf.pack(train_output)
             #Use the variables above to also unravel the eval node
-            loss = loss +  0.2*tf.reduce_sum(tf.abs(w)) + 0.2*tf.reduce_sum(tf.abs(w_2))
+            #loss = loss +  0.2*tf.reduce_sum(tf.abs(w)) + 0.2*tf.reduce_sum(tf.abs(w_2))
             self.loss = loss
             #self.loss = tf.reduce_mean(loss)
             #self.lr = tf.Variable(0.0, trainable=False,name='LR')
