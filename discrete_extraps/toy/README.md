@@ -1,7 +1,7 @@
-# Discrete detector track extrapolation
+# Discrete detector track extrapolation and hit classification
 
 This area contains notebooks and code for track-finding methods based
-on discrete detector data and track extrapolations.
+on discrete detector toy data and track extrapolations or hit classifications.
 
 ## Notebooks
 
