@@ -110,6 +110,41 @@ def draw_3d_event(event, sig_track=None, sig_params=None, prediction=None,
     plt.tight_layout()
     return fig, ax
 
+def draw_2d_event(event, title=None, mask_ranges=None, mask_style='w:',
+                  tight=True, **kwargs):
+    """
+    Draw and format one 2D detector event with matplotlib.
+    Params:
+        event: data for one event in image format
+        title: plot title
+        mask_range: tuple of arrays, (lower, upper) defining a detector
+            mask envelope that will be drawn on the display
+        kwargs: additional keywords passed to pyplot.plot
+    """
+    plt.imshow(event.T, interpolation='none', aspect='auto',
+               origin='lower', **kwargs)
+    if title is not None:
+        plt.title(title)
+    plt.xlabel('Layer')
+    plt.ylabel('Pixel')
+    plt.autoscale(False)
+    if tight:
+        plt.tight_layout()
+    if mask_ranges is not None:
+        plt.plot(mask_ranges[:,0], mask_style)
+        plt.plot(mask_ranges[:,1], mask_style)
+
+def draw_2d_input_and_pred(event_input, event_pred, figsize=(9,4),
+                           cmap='jet', mask_ranges=None, mask_style='k:',):
+    fig = plt.figure(figsize=figsize)
+    plt.subplot(121)
+    draw_2d_event(event_input, title='Input', cmap=cmap,
+                  mask_ranges=mask_ranges, mask_style=mask_style)
+    plt.subplot(122)
+    draw_2d_event(event_pred, title='Model prediction', cmap=cmap,
+                  mask_ranges=mask_ranges, mask_style=mask_style)
+    return fig
+
 def draw_train_history(history, draw_val=True, figsize=(12,5)):
     """Make plots of training and validation losses and accuracies"""
     fig = plt.figure(figsize=figsize)
