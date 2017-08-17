@@ -8,7 +8,7 @@ from __future__ import print_function
 import ast
 import pandas as pd
 
-def load_data_events(file_name, columns, start_evtid=0, print_freq=100):
+def load_data_events(file_name, columns, start_evtid=0, print_freq=1e6):
     """
     Load data from file into a pandas dataframe.
     
