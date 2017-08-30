@@ -8,7 +8,7 @@ from __future__ import print_function
 import ast
 import pandas as pd
 
-def load_data_events(file_name, columns, start_evtid=0, print_freq=1e6):
+def load_data_events(file_name, columns, start_evtid=0):
     """
     Load data from file into a pandas dataframe.
     
@@ -29,8 +29,6 @@ def load_data_events(file_name, columns, start_evtid=0, print_freq=1e6):
             # Finalize a complete event
             elif len(event_lines) > 0:
                 evtid = len(dfs) + start_evtid
-                if (evtid % print_freq) == 0:
-                    print('Finished event', evtid)
                 df = pd.DataFrame(event_lines)
                 df.columns = columns
                 df['evtid'] = evtid
