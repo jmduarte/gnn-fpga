@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 
 # Local imports
 from data import process_files
-from track_filter import coord_scale, select_hits
+from track_filter import coord_scale, select_hits, select_signal_hits
 
 def parse_args():
     parser = argparse.ArgumentParser('prepareData.py')
@@ -47,7 +47,7 @@ def main():
     logging.info('Loaded hits data with shape: %s' % (hits.shape,))
 
     # Select good track hits
-    hits = select_hits(hits)
+    hits = select_signal_hits(select_hits(hits))
     logging.info('Selected hits: %s' % (hits.shape,))
 
     # Gather into tensor of shape (events, layers, features)
