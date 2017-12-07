@@ -52,7 +52,7 @@ def main():
 
     # Gather into tensor of shape (events, layers, features)
     input_data = (np.stack(hits.groupby(['evtid', 'barcode'])
-                           .apply(lambda x: x[['phi', 'z', 'layer']].values))
+                           .apply(lambda x: x[['phi', 'z', 'r']].values))
                   .astype(np.float32))
     # Scale coordinates
     input_data[:,:] /= coord_scale

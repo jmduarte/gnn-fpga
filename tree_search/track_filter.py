@@ -11,13 +11,12 @@ import pandas as pd
 # Deep learning
 import torch
 import torch.nn as nn
-#import torch.nn.functional as F
 
 # Local imports
 import torchutils
 
 # Scale (phi,z,r) down to ~unit max
-coord_scale = np.array([np.pi, 1000., 10.])
+coord_scale = np.array([np.pi, 1000., 1000.])
 
 def remove_duplicate_hits(hits):
     """Averages together all duplicate (same particle) hits on layers"""
