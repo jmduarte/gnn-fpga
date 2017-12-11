@@ -57,10 +57,10 @@ class HitPredictor(nn.Module):
         # Initialize the lstm hidden state
         torch_zeros = torchutils.torch_zeros
         func_args = (self.lstm.num_layers, input_size[0], self.lstm.hidden_size)
-        h = (torchutils.torch_zeros(*func_args),
-             torchutils.torch_zeros(*func_args))
+        h = (torch_zeros(*func_args), torch_zeros(*func_args))
         x, h = self.lstm(x, h)
-        # Flatten layer axis into batch axis so FC applies independently across layers.
+        # Flatten layer axis into batch axis so FC applies
+        # independently across layers.
         x = (self.fc(x.contiguous().view(-1, x.size(-1)))
              .view(input_size[0], input_size[1], -1))
         return x

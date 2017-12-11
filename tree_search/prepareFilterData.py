@@ -7,7 +7,6 @@ import argparse
 
 # External imports
 import numpy as np
-#import pandas pd
 from sklearn.model_selection import train_test_split
 
 # Local imports
@@ -33,8 +32,8 @@ def main():
     args = parse_args()
 
     # Setup logging
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)s %(message)s')
+    log_format = '%(asctime)s %(levelname)s %(message)s'
+    logging.basicConfig(level=logging.INFO, format=log_format)
     logging.info('Initializing')
     if args.show_config:
         logging.info('Command line config: %s' % args)
@@ -42,7 +41,8 @@ def main():
     # Read the data
     all_files = os.listdir(args.input_dir)
     hits_files = sorted(f for f in all_files if f.startswith('clusters'))
-    hits_files = [os.path.join(args.input_dir, f) for f in hits_files[:args.n_files]]
+    hits_files = [os.path.join(args.input_dir, f)
+                  for f in hits_files[:args.n_files]]
     hits = process_files(hits_files, num_workers=args.n_file_workers)
     logging.info('Loaded hits data with shape: %s' % (hits.shape,))
 
