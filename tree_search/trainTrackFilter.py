@@ -15,13 +15,14 @@ import torch.nn as nn
 # Local imports
 import torchutils
 from estimator import Estimator
-from track_filter import HitPredictor
+from track_filter import HitPredictor, HitGausPredictor, gaus_llh_loss
 
 def parse_args():
     parser = argparse.ArgumentParser('trainTrackFilter.py')
     add_arg = parser.add_argument
     add_arg('--input-dir', default='/global/cscratch1/sd/sfarrell/heptrkx/RNNFilter')
     add_arg('--output-dir')
+    add_arg('--model', choices=['regression', 'gaus'], default='regression')
     add_arg('--n-train', type=int, help='Maximum number of training samples')
     add_arg('--n-valid', type=int, help='Maximum number of validation samples')
     add_arg('--n-epochs', type=int, default=1)
@@ -31,25 +32,6 @@ def parse_args():
     add_arg('--show-config', action='store_true')
     add_arg('--interactive', action='store_true')
     return parser.parse_args()
-
-class TrackFilterer(nn.Module):
-
-    def __init__(self, input_dim=3, hidden_dim=5, output_dim=2, n_lstm_layers=1):
-        super(TrackFilterer, self).__init__()
-        self.lstm = nn.LSTM(input_dim, hidden_dim, n_lstm_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_dim, output_dim)
-
-    def forward(self, x):
-        input_size = x.size()
-        # Initialize the lstm hidden state
-        torch_zeros = torchutils.torch_zeros
-        h = (torch_zeros(self.lstm.num_layers, input_size[0], self.lstm.hidden_size),
-             torch_zeros(self.lstm.num_layers, input_size[0], self.lstm.hidden_size))
-        x, h = self.lstm(x, h)
-        # Flatten layer axis into batch axis so FC applies independently across layers.
-        x = (self.fc(x.contiguous().view(-1, x.size(-1)))
-             .view(input_size[0], input_size[1], -1))
-        return x
 
 def main():
     args = parse_args()
@@ -82,11 +64,16 @@ def main():
     valid_target = torchutils.np_to_torch(valid_data[:,1:,:2])
 
     # Construct the model and estimator
-    estimator = Estimator(
-            HitPredictor(hidden_dim=args.hidden_dim),
-            loss_func=nn.MSELoss(), cuda=args.cuda)
+    if args.model == 'regression':
+        estimator = Estimator(
+                HitPredictor(hidden_dim=args.hidden_dim),
+                loss_func=nn.MSELoss(), cuda=args.cuda)
+    else:
+        estimator = Estimator(
+                HitGausPredictor(hidden_dim=args.hidden_dim),
+                loss_func=gaus_llh_loss, cuda=args.cuda)
 
-    ## Train the model
+    # Train the model
     estimator.fit(train_input, train_target,
                   valid_input=valid_input, valid_target=valid_target,
                   batch_size=args.batch_size, n_epochs=args.n_epochs)
