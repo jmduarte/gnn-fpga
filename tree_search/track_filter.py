@@ -23,6 +23,16 @@ def remove_duplicate_hits(hits):
     """Averages together all duplicate (same particle) hits on layers"""
     return hits.groupby(['evtid', 'barcode', 'layer'], as_index=False).mean()
 
+def remove_duplicate_hits_2(hits):
+    """
+    Removes duplicate (same particle) hits on layers by keeping only the
+    ones with smallest cylindrical radius.
+    """
+    return hits.loc[
+        hits.groupby(['evtid', 'barcode', 'layer'], as_index=False)
+        .r.idxmin()
+    ]
+
 def select_hits(hits):
     # Select all barrel hits
     vids = [8, 13, 17]
@@ -39,7 +49,7 @@ def select_hits(hits):
 
 def select_signal_hits(hits):
     """Select signal hits from tracks that hit all barrel layers"""
-    return remove_duplicate_hits(
+    return remove_duplicate_hits_2(
             hits.groupby(['evtid', 'barcode'])
             .filter(lambda x: len(x) >= 10 and x.layer.unique().size == 10))
 
