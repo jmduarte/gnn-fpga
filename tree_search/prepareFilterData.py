@@ -21,6 +21,7 @@ def parse_args():
     add_arg('--output-dir')
     add_arg('--n-files', type=int, default=1)
     add_arg('--n-file-workers', type=int, default=1)
+    add_arg('--valid-frac', type=float, default=0.1)
     add_arg('--test-frac', type=float, default=0.1)
     add_arg('--show-config', action='store_true',
             help='Dump the command line config')
@@ -57,13 +58,17 @@ def main():
     # Scale coordinates
     input_data[:,:] /= coord_scale
 
-    # Split into training and test sets
-    train_data, test_data = train_test_split(input_data, test_size=args.test_frac)
+    # Split into training, validation, and test sets
+    val_test_frac = args.test_frac + args.valid_frac
+    train_data, val_test_data = train_test_split(input_data, test_size=val_test_frac)
+    test_sub_frac = args.test_frac / val_test_frac
+    valid_data, test_data = train_test_split(val_test_data, test_size=test_sub_frac)
 
     # Save the results
     if args.output_dir is not None:
         logging.info('Writing data to %s' % args.output_dir)
         np.save(os.path.join(args.output_dir, 'train_data'), train_data)
+        np.save(os.path.join(args.output_dir, 'valid_data'), valid_data)
         np.save(os.path.join(args.output_dir, 'test_data'), test_data)
 
     if args.interactive:

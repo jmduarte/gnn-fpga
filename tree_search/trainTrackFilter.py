@@ -23,7 +23,7 @@ def parse_args():
     add_arg('--input-dir', default='/global/cscratch1/sd/sfarrell/heptrkx/RNNFilter')
     add_arg('--output-dir')
     add_arg('--n-train', type=int, help='Maximum number of training samples')
-    add_arg('--n-test', type=int, help='Maximum number of test samples')
+    add_arg('--n-valid', type=int, help='Maximum number of validation samples')
     add_arg('--n-epochs', type=int, default=1)
     add_arg('--batch-size', type=int, default=32)
     add_arg('--hidden-dim', type=int, default=20)
@@ -63,23 +63,23 @@ def main():
 
     # Read the data
     train_data = np.load(os.path.join(args.input_dir, 'train_data.npy'))
-    test_data = np.load(os.path.join(args.input_dir, 'test_data.npy'))
+    valid_data = np.load(os.path.join(args.input_dir, 'valid_data.npy'))
 
     if args.n_train is not None and args.n_train > 0:
         train_data = train_data[:args.n_train]
-    if args.n_test is not None and args.n_test > 0:
-        test_data = test_data[:args.n_test]
+    if args.n_valid is not None and args.n_valid > 0:
+        valid_data = valid_data[:args.n_valid]
 
     logging.info('Loaded training data: %s' % (train_data.shape,))
-    logging.info('Loaded test data: %s' % (test_data.shape,))
+    logging.info('Loaded validation data: %s' % (valid_data.shape,))
 
-    # Inputs are the hits from [0, N-1)
-    # Targets are the hits from [1, N) without the layer feature.
+    # Inputs are the hits from [0, N-1).
+    # Targets are the hits from [1, N) without the radius feature.
     torchutils.set_cuda(args.cuda)
     train_input = torchutils.np_to_torch(train_data[:,:-1])
     train_target = torchutils.np_to_torch(train_data[:,1:,:2])
-    test_input = torchutils.np_to_torch(test_data[:,:-1])
-    test_target = torchutils.np_to_torch(test_data[:,1:,:2])
+    valid_input = torchutils.np_to_torch(valid_data[:,:-1])
+    valid_target = torchutils.np_to_torch(valid_data[:,1:,:2])
 
     # Construct the model and estimator
     estimator = Estimator(
@@ -88,7 +88,7 @@ def main():
 
     ## Train the model
     estimator.fit(train_input, train_target,
-                  valid_input=test_input, valid_target=test_target,
+                  valid_input=valid_input, valid_target=valid_target,
                   batch_size=args.batch_size, n_epochs=args.n_epochs)
 
     # Save outputs
@@ -100,7 +100,7 @@ def main():
         # Save the losses for plotting
         np.savez(os.path.join(args.output_dir, 'losses'),
                  train_losses=estimator.train_losses,
-                 test_losses=estimator.valid_losses)
+                 valid_losses=estimator.valid_losses)
 
     # Drop to IPython interactive shell
     if args.interactive:
