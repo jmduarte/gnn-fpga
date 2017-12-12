@@ -4,6 +4,7 @@
 import os
 import logging
 import argparse
+import multiprocessing as mp
 
 # External imports
 import numpy as np
@@ -20,7 +21,7 @@ def parse_args():
             default='/global/cscratch1/sd/sfarrell/ACTS/prod_mu10_pt1000_2017_07_29')
     add_arg('--output-dir')
     add_arg('--n-files', type=int, default=1)
-    add_arg('--n-file-workers', type=int, default=1)
+    add_arg('--n-workers', type=int, default=1)
     add_arg('--valid-frac', type=float, default=0.1)
     add_arg('--test-frac', type=float, default=0.1)
     add_arg('--show-config', action='store_true',
@@ -28,6 +29,15 @@ def parse_args():
     add_arg('--interactive', action='store_true',
             help='Drop into IPython shell at end of script')
     return parser.parse_args()
+
+def finalize_data(hits):
+    """Converts a dataframe of final hits data into numpy tensor"""
+    data = (np.stack(hits.groupby(['evtid', 'barcode'])
+                     .apply(lambda x: x[['phi', 'z', 'r']].values))
+            .astype(np.float32))
+    # Scale coordinates
+    data[:,:] /= coord_scale
+    return data
 
 def main():
     args = parse_args()
@@ -44,19 +54,22 @@ def main():
     hits_files = sorted(f for f in all_files if f.startswith('clusters'))
     hits_files = [os.path.join(args.input_dir, f)
                   for f in hits_files[:args.n_files]]
-    hits = process_files(hits_files, num_workers=args.n_file_workers)
-    logging.info('Loaded hits data with shape: %s' % (hits.shape,))
+    hits = process_files(hits_files, num_workers=args.n_workers, concat=False)
+    logging.info('Loaded hits data with shapes: %s' % (map(np.shape, hits),))
 
-    # Select good track hits
-    hits = select_signal_hits(select_hits(hits))
-    logging.info('Selected hits: %s' % (hits.shape,))
+    # Select good track hits using process pool
+    pool = mp.Pool(processes=args.n_workers)
+    hits = pool.map(select_hits, hits)
+    hits = pool.map(select_signal_hits, hits)
 
     # Gather into tensor of shape (events, layers, features)
-    input_data = (np.stack(hits.groupby(['evtid', 'barcode'])
-                           .apply(lambda x: x[['phi', 'z', 'r']].values))
-                  .astype(np.float32))
-    # Scale coordinates
-    input_data[:,:] /= coord_scale
+    input_data = pool.map(finalize_data, hits)
+    input_data = np.concatenate(input_data)
+    logging.info('Final data shape: %s' % (input_data.shape,))
+
+    # Close the process pool
+    pool.close()
+    pool.join()
 
     # Split into training, validation, and test sets
     val_test_frac = args.test_frac + args.valid_frac
