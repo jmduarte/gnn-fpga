@@ -35,6 +35,10 @@ def finalize_data(hits):
     data = (np.stack(hits.groupby(['evtid', 'barcode'])
                      .apply(lambda x: x[['phi', 'z', 'r']].values))
             .astype(np.float32))
+    # Center every track in phi on the first hit.
+    data[:,:,0] -= data[:,:1,0]
+    data[data[:,:,0] > np.pi, 0] -= 2*np.pi
+    data[data[:,:,0] < -np.pi, 0] += 2*np.pi
     # Scale coordinates
     data[:,:] /= coord_scale
     return data
@@ -87,6 +91,7 @@ def main():
     if args.interactive:
         import IPython
         IPython.embed()
+
     logging.info('All done!')
 
 if __name__ == '__main__':
