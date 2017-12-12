@@ -5,6 +5,7 @@ code for doing the training of a PyTorch model.
 
 from __future__ import print_function
 
+import logging
 from timeit import default_timer as timer
 
 import numpy as np
@@ -23,8 +24,9 @@ class Estimator(object):
         if opt == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters())
         
-        print(model)
-        print('Parameters:', sum(param.numel() for param in model.parameters()))
+        logging.info('Model: \n%s' % model)
+        logging.info('Parameters: %i' %
+                     sum(param.numel() for param in model.parameters()))
     
     def training_step(self, inputs, targets):
         """Applies single optimization step on batch"""
@@ -40,16 +42,16 @@ class Estimator(object):
         """Runs batch training for a number of specified epochs."""
         n_samples = train_input.size(0)
         n_batches = (n_samples + batch_size - 1) // batch_size
-        print('Training samples:', n_samples)
-        print('Batches per epoch:', n_batches)
+        logging.info('Training samples: %i' % n_samples)
+        logging.info('Batches per epoch: %i' % n_batches)
         if valid_input is not None:
-            print('Validation samples:', valid_input.size(0))
+            logging.info('Validation samples: %i' % valid_input.size(0))
 
         batch_idxs = np.arange(0, n_samples, batch_size)
         self.train_losses, self.valid_losses = [], []
 
         for i in range(n_epochs):
-            print('Epoch', i)
+            logging.info('Epoch %i' % i)
             start_time = timer()
             sum_loss = 0
 
@@ -63,10 +65,12 @@ class Estimator(object):
             end_time = timer()
             avg_loss = sum_loss / n_batches
             self.train_losses.append(avg_loss)
-            print('  training loss %.3g' % avg_loss, 'time %gs' % (end_time - start_time))
+            logging.info('  training loss %.3g time %gs' %
+                         (avg_loss, (end_time - start_time)))
             
             # Evaluate the model on the validation set
             if (valid_input is not None) and (valid_target is not None):
-                valid_loss = self.loss_func(self.model(valid_input), valid_target).cpu().data[0]
+                valid_loss = (self.loss_func(self.model(valid_input), valid_target)
+                              .cpu().data[0])
                 self.valid_losses.append(valid_loss)
-                print('  validate loss %.3g' % valid_loss)
+                logging.info('  validate loss %.3g' % valid_loss)
