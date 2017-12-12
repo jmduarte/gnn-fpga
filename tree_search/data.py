@@ -58,7 +58,7 @@ def read_worker(hits_file):
                     'lerr', 'gpos', 'chans', 'dir', 'direrr']
     return process_hits_data(load_data_events(hits_file, columns=hits_columns))
 
-def process_files(hits_files, num_workers):
+def process_files(hits_files, num_workers, concat=True):
     """Load and process a set of hits files with MP"""
     pool = mp.Pool(processes=num_workers)
     hits = pool.map(read_worker, hits_files)
@@ -67,4 +67,7 @@ def process_files(hits_files, num_workers):
     # Fix the evtid to be consecutive
     for i in range(1, len(hits)):
         hits[i].evtid += hits[i-1].evtid.iloc[-1] + 1
-    return pd.concat(hits, ignore_index=True)
+    if concat:
+        return pd.concat(hits, ignore_index=True)
+    else:
+        return hits
