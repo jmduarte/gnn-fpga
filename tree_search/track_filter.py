@@ -112,7 +112,7 @@ class HitGausPredictor(nn.Module):
         input_dim = 3
         output_dim = 2
         self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
-        out_size = input_dim * (input_dim + 3) / 2
+        out_size = output_dim * (output_dim + 3) / 2
         self.fc = nn.Linear(hidden_dim, out_size)
 
     def forward(self, x):
