@@ -161,8 +161,10 @@ def gaus_llh_loss(outputs, targets):
     # Calculate the residual error term
     res_right = torch.bmm(inv_covs, res.unsqueeze(-1)).squeeze(-1)
     res_term = torch.bmm(res[:,None,:], res_right[:,:,None]).squeeze()
-    # For the determinant term, we first have to compute the cholesky roots
-    diag_chols = torch.stack([Cholesky.apply(cov).diag() for cov in covs])
+    # For the determinant term, we first have to compute the cholesky roots.
+    # Testing out new differentiable functionality in pytorch 0.3
+    diag_chols = torch.stack([torch.potrf(cov).diag() for cov in covs])
+    #diag_chols = torch.stack([Cholesky.apply(cov).diag() for cov in covs])
     log_det = diag_chols.log().sum(1) * 2
     gllh_loss = (res_term + log_det).sum()
     return gllh_loss
