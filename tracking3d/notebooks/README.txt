@@ -79,3 +79,34 @@ The code used can be found in the generator directory."
 
 
 ################################################################################
+CUSTOM-LOSS-PRACTICE-CAT.ipynb
+
+"A file used to practice custom loss functions with toy data and using a 
+categorical output framework. The results were that custom loss functions
+are compatible with categorical output representations, but it takes significantly
+more epochs to train them. The custom loss function is special in that it makes
+reference to the input tensor, the output prediction and the output truth.
+Normally, loss functions only reference the prediction and the truth."
+
+################################################################################
+CUSTOM-LOSS-PRACTICE-MSE.ipynb
+
+"A file used to practice custom loss functions with toy data and using mean
+square error. The results were that loss functions that reference the input
+tensor are possible."
+
+################################################################################
+CUSTOM-LOSS-PRACTICE-RNN.ipynb
+
+"A file used to practice custom loss functions with toy data and using RNN
+neural network layers (particularly GRU). The results were that the methods
+I used to test RNN are not compatible with custom loss functions that
+reference the input tensor."
+
+################################################################################
+CUSTOMLoss.ipynb
+
+"A file used to test a custom loss function that evaluates the linear regression
+of each track within an event. The data used is the same as
+ACTS-MU10-PT1000-T50.ipynb. The results were that the custom loss function
+does not perform well and was difficult to construct for the tracking problem." 
