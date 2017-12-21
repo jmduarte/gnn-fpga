@@ -17,14 +17,19 @@ package."
 ################################################################################
 notebooks
 
-"A collection of notebooks used to show how data was loaded in, how it was
+"To run a notebook, make sure that it is at the same level as the tracker folder.
+
+A collection of notebooks used to show how data was loaded in, how it was
 cleaned, how it was used to train a model and how it was used to evaluate a
 model."
 
 ################################################################################
 sets
 
-"Contains the data used to train and evaluate the neural networks."
+"Contains the data used to train and evaluate the neural networks.
+If the sets folder is missing, you can find the data at:
+
+https://drive.google.com/open?id=1vb41VRc5z1DFaID5QcuViDNuGYoKZLa7"
 
 ################################################################################
 tracker
