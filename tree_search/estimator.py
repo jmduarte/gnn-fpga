@@ -15,7 +15,9 @@ import torch
 class Estimator(object):
     """Estimator class"""
     
-    def __init__(self, model, loss_func, opt='Adam', cuda=False):
+    def __init__(self, model, loss_func, opt='Adam',
+                 train_losses=[], valid_losses=[],
+                 cuda=False):
         
         self.model = model
         if cuda:
@@ -23,6 +25,9 @@ class Estimator(object):
         self.loss_func = loss_func
         if opt == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters())
+
+        self.train_losses = train_losses
+        self.valid_losses = valid_losses
         
         logging.info('Model: \n%s' % model)
         logging.info('Parameters: %i' %
@@ -48,9 +53,10 @@ class Estimator(object):
             logging.info('Validation samples: %i' % valid_input.size(0))
 
         batch_idxs = np.arange(0, n_samples, batch_size)
-        self.train_losses, self.valid_losses = [], []
 
-        for i in range(n_epochs):
+        epoch_start = len(self.train_losses)
+        epoch_end = epoch_start + n_epochs
+        for i in range(epoch_start, epoch_end):
             logging.info('Epoch %i' % i)
             start_time = timer()
             sum_loss = 0

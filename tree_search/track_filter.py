@@ -156,7 +156,6 @@ def gaus_llh_loss(outputs, targets):
     # Calculate the inverses of the covariance matrices
     inv_covs = torch.stack([cov.inverse() for cov in covs])
     # Calculate the residual error
-    # TODO: need to fix for phi discontinuity!!
     res = targets - means
     # Calculate the residual error term
     res_right = torch.bmm(inv_covs, res.unsqueeze(-1)).squeeze(-1)

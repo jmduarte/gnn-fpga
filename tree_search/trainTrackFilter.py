@@ -21,6 +21,8 @@ def parse_args():
     parser = argparse.ArgumentParser('trainTrackFilter.py')
     add_arg = parser.add_argument
     add_arg('--input-dir', default='/global/cscratch1/sd/sfarrell/heptrkx/RNNFilter')
+    add_arg('--continue-dir',
+            help='Directory containing model to continue training')
     add_arg('--output-dir')
     add_arg('--model', choices=['regression', 'gaus'], default='regression')
     add_arg('--n-train', type=int, help='Maximum number of training samples')
@@ -63,15 +65,33 @@ def main():
     valid_input = torchutils.np_to_torch(valid_data[:,:-1])
     valid_target = torchutils.np_to_torch(valid_data[:,1:,:2])
 
-    # Construct the model and estimator
+    model = None
+    train_losses, valid_losses = [], []
+
+    # If we're continuing a pre-trained model, load it up now
+    if args.continue_dir is not None and args.continue_dir != '':
+        logging.info('Loading model to continue training from %s' % args.continue_dir)
+        model_file = os.path.join(args.continue_dir, 'model')
+        model = torch.load(model_file)
+        losses_file = os.path.join(args.continue_dir, 'losses.npz')
+        losses_data = np.load(losses_file)
+        train_losses = list(losses_data['train_losses'])
+        valid_losses = list(losses_data['valid_losses'])
+
+    # Configure model type and loss function
     if args.model == 'regression':
-        estimator = Estimator(
-                HitPredictor(hidden_dim=args.hidden_dim),
-                loss_func=nn.MSELoss(), cuda=args.cuda)
+        model_type = HitPredictor
+        loss_func = nn.MSELoss()
     else:
-        estimator = Estimator(
-                HitGausPredictor(hidden_dim=args.hidden_dim),
-                loss_func=gaus_llh_loss, cuda=args.cuda)
+        model_type = HitGausPredictor
+        loss_func = gaus_llh_loss
+
+    # Construct the model if not done already
+    if model is None:
+        model = model_type(hidden_dim=args.hidden_dim)
+    # Construct the estimator
+    estimator = Estimator(model, loss_func=loss_func, cuda=args.cuda,
+                          train_losses=train_losses, valid_losses=valid_losses)
 
     # Train the model
     estimator.fit(train_input, train_target,
