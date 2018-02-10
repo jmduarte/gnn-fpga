@@ -12,11 +12,11 @@ import numpy as np
 
 import torch
 
-class Estimator(object):
+class Estimator():
     """Estimator class"""
     
     def __init__(self, model, loss_func, opt='Adam',
-                 train_losses=[], valid_losses=[],
+                 train_losses=None, valid_losses=None,
                  cuda=False):
         
         self.model = model
@@ -26,8 +26,8 @@ class Estimator(object):
         if opt == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters())
 
-        self.train_losses = train_losses
-        self.valid_losses = valid_losses
+        self.train_losses = train_losses if train_losses is not None else []
+        self.valid_losses = valid_losses if valid_losses is not None else []
         
         logging.info('Model: \n%s' % model)
         logging.info('Parameters: %i' %
