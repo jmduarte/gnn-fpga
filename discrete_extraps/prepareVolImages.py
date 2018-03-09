@@ -137,8 +137,11 @@ def main():
         np.save(os.path.join(args.output_dir, 'test_labels'), test_labels)
         # Save the images
         for iv in range(n_vols):
-            np.save(os.path.join(args.output_dir, 'train_v%i' % vols[iv]), train_hists[iv])
-            np.save(os.path.join(args.output_dir, 'test_v%i' % vols[iv]), test_hists[iv])
+            make_name = lambda n: os.path.join(args.output_dir, n)
+            np.save(make_name('train_v%i' % vols[iv]), train_hists[iv])
+            np.save(make_name('test_v%i' % vols[iv]), test_hists[iv])
+            np.save(make_name('bins'), bins)
+            np.save(make_name('ranges'), ranges)
 
     # Drop to interactive shell
     if args.interactive:
