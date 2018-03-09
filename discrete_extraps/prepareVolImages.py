@@ -31,9 +31,9 @@ vols = [0, 1, 2]
 n_vols = len(vols)
 # Number of bins defined per volume as (numLayer, numPhi, numZ)
 bins = [
-    [4, 64, 64],
-    [4, 64, 64],
-    [2, 64, 21]
+    [4, 128, 128],
+    [4, 128, 128],
+    [2, 128, 21]
 ]
 # Ranges similarly defined per volume as (rangeLayer, rangePhi, rangeZ)
 ranges = [
