@@ -161,13 +161,20 @@ def bin_barrel_hits(hits, evtids, vols, bins, ranges):
             hists[iv][i] = np.histogramdd(hdata, bins=bins[iv], range=ranges[iv])[0]
     return hists
 
+def data_consistent(h, p):
+    join_keys = ['evtid', 'barcode']
+    matches = p[join_keys].merge(h[join_keys], on=join_keys)
+    valid = (matches.shape[0] == h.shape[0])
+    if not valid:
+        print('Invalid data file found!')
+    return valid
+
 def check_data_consistency(hits, particles):
     """
     Make sure every hit has a particle in the corresponding truth data.
     Inputs hits and particles are lists of dataframes from input files.
     """
-    join_keys = ['evtid', 'barcode']
-    for h, p in zip(hits, particles):
-        matches = p[join_keys].merge(h[join_keys], on=join_keys)
-        assert matches.shape[0] == h.shape[0], (matches.shape[0], h.shape[0])
-    print('All looks ok!')
+    data = [(h,p) for (h,p) in zip(hits, particles) if data_consistent(h, p)]
+    hits = [hp[0] for hp in data]
+    particles = [hp[1] for hp in data]
+    return hits, particles
