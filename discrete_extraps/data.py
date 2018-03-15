@@ -111,13 +111,6 @@ def process_files(hits_files, particles_files, pool):
     hits = process_hits_files(hits_files, pool)
     particles = process_particles_files(particles_files, pool)
     return hits, particles
-    #hits = pool.map(read_hits_worker, hits_files)
-    #particles = pool.map(read_particles_worker, particles_files)
-    ## Fix the evtid to be consecutive
-    #for i in range(1, len(hits)):
-    #    hits[i].evtid += hits[i-1].evtid.iloc[-1] + 1
-    #    particles[i].evtid += particles[i-1].evtid.iloc[-1] + 1
-    #return hits, particles
 
 def select_barrel_hits(hits):
     """Selects hits in the barrel volumes and re-enumerates volumes and layers"""
@@ -134,7 +127,6 @@ def select_barrel_hits(hits):
     return (barrel_hits[['evtid', 'barcode', 'phi', 'z']]
             .assign(volume=volume, layer=layer))
 
-# TODO: allow to get or control the list of evtids!
 def bin_barrel_hits(hits, evtids, vols, bins, ranges):
     """Construct the per-volume images by binning the hits"""
     # Prepare to lookup hits by evtid
