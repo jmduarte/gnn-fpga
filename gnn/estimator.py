@@ -61,7 +61,7 @@ class Estimator():
             for j in range(n_batches):
                 batch_input, batch_target = next(train_generator)
                 batch_loss = (self.training_step(batch_input, batch_target)
-                              .cpu().data[0])
+                              .cpu().data.item())
                 sum_loss += batch_loss
                 if verbose > 0:
                     logger('  Batch %i loss %f' % (j, batch_loss))
@@ -78,7 +78,7 @@ class Estimator():
                 for j in range(n_valid_batches):
                     valid_input, valid_target = next(valid_generator)
                     valid_loss += (self.loss_func(self.model(valid_input), valid_target)
-                                   .cpu().data[0])
+                                   .cpu().data.item())
                 valid_loss = valid_loss / n_valid_batches
                 self.valid_losses.append(valid_loss)
                 logger('  validate loss %.3g' % valid_loss)
@@ -127,7 +127,7 @@ class Estimator():
                     batch_input = train_input[j:j+batch_size]
                 batch_target = train_target[j:j+batch_size]
                 loss = self.training_step(batch_input, batch_target)
-                sum_loss += loss.cpu().data[0]
+                sum_loss += loss.cpu().data.item()
 
             end_time = timer()
             avg_loss = sum_loss / n_batches
@@ -139,6 +139,6 @@ class Estimator():
             self.model.eval()
             if (valid_input is not None) and (valid_target is not None):
                 valid_loss = (self.loss_func(self.model(valid_input), valid_target)
-                              .cpu().data[0])
+                              .cpu().data.item())
                 self.valid_losses.append(valid_loss)
                 logger('  validate loss %.3g' % valid_loss)
