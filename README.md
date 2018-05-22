@@ -1,11 +1,24 @@
-# HEP.TrkX
+# gnn-fpga
 
-Github code repository for the HEP.TrkX project, exploring and developing
-machine learning algorithms for tracking in High Energy Physics.
+To log in to rulinux with port forwarding:
+```
+ssh -L localhost:9999:localhost:9999 jduarte1@rulinux04.DHCP.fnal.gov
+```
 
-There are a few ongoing projects in this repo currently:
-* rnnlhc: Using LSTMs to model dynamics of a track and predict 3D hit
-  spacepoints.
-* houghlike: Jean-Roch's work on detector-image transformations
-* discrete\_extraps: Predict hit locations on a discrete detector for track
-  finding.
+To install:
+```
+source install_miniconda.ish
+source install.sh
+```
+
+To setup:
+```
+source setup.sh
+```
+
+To run jupyter notebook over the same port:
+```
+jupyter notebook --ip 127.0.0.1 --port 9999 --no-browser 
+```
+
+
