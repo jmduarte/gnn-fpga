@@ -1,5 +1,0 @@
-setup.py
-rnnlhc.egg-info/PKG-INFO
-rnnlhc.egg-info/SOURCES.txt
-rnnlhc.egg-info/dependency_links.txt
-rnnlhc.egg-info/top_level.txt
