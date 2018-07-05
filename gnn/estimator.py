@@ -10,6 +10,9 @@ from timeit import default_timer as timer
 
 import numpy as np
 
+import shutil 
+import os
+
 import torch
 
 def logger(s):
@@ -46,11 +49,34 @@ class Estimator():
         self.optimizer.step()
         return loss
 
+    def save_checkpoint(self, state, is_best, filename='checkpoint.pt'):
+        directory = os.path.dirname(filename)
+        try:
+            os.stat(directory)
+        except:
+            os.mkdir(directory)
+        torch.save(state, filename)
+        if is_best:
+            bestfilename = directory+'/model_best.pt'
+            shutil.copyfile(filename, bestfilename)
+            
+    def load_checkpoint(self, filename='checkpoint.pt'):
+        checkpoint = torch.load(filename)
+        self.model.load_state_dict(checkpoint['state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.valid_losses = checkpoint['valid_losses']
+        self.train_losses = checkpoint['train_losses']
+    
     def fit_gen(self, train_generator, n_batches=1, n_epochs=1,
-                valid_generator=None, n_valid_batches=1, verbose=0):
+                valid_generator=None, n_valid_batches=1, verbose=0, 
+                filename='checkpoint.pt'):
         """Runs batch training for a number of specified epochs."""
         epoch_start = len(self.train_losses)
         epoch_end = epoch_start + n_epochs
+        if len(self.valid_losses) > 0:
+            best_valid_loss = self.valid_losses[-1]
+        else:
+            best_valid_loss = 99999999
         for i in range(epoch_start, epoch_end):
             logger('Epoch %i' % i)
             start_time = timer()
@@ -82,6 +108,19 @@ class Estimator():
                 valid_loss = valid_loss / n_valid_batches
                 self.valid_losses.append(valid_loss)
                 logger('  validate loss %.3g' % valid_loss)
+                
+                #Save model checkpoint - modified
+                logger(' save checkpoint') 
+                is_best = valid_loss < best_valid_loss
+                best_valid_loss = min(valid_loss, best_valid_loss)
+                self.save_checkpoint({
+                    'epoch': i + 1,
+                    'state_dict': self.model.state_dict(),
+                    'best_valid_loss': best_valid_loss,
+                    'valid_losses': self.valid_losses,
+                    'train_losses': self.train_losses,
+                    'optimizer' : self.optimizer.state_dict(),
+                }, is_best, filename=filename)
 
     def predict(self, generator, n_batches, concat=True):
         self.model.eval()
