@@ -40,11 +40,19 @@ class Estimator():
         logger('Parameters: %i' %
                sum(param.numel() for param in model.parameters()))
 
+    def l1_penalty(self, var1, var2):
+        sum = torch.abs(var1).sum() + torch.abs(var2).sum()
+        return sum
+        
     def training_step(self, inputs, targets):
         """Applies single optimization step on batch"""
         self.model.zero_grad()
         outputs = self.model(inputs)
-        loss = self.loss_func(outputs, targets)
+        lambda1 = 0.01
+        arr_e = self.model.edge_network.network[0].weight 
+        arr_n = self.model.node_network.network[0].weight 
+        l1_regularization = lambda1 * self.l1_penalty(arr_e, arr_n)
+        loss = self.loss_func(outputs, targets) + l1_regularization 
         loss.backward()
         self.optimizer.step()
         return loss
