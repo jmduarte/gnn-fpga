@@ -40,30 +40,18 @@ class Estimator():
         logger('Parameters: %i' %
                sum(param.numel() for param in model.parameters()))
 
-<<<<<<< HEAD
     def l1_penalty(self, arr):
         sum = torch.abs(arr).sum() #+ torch.abs(arr2).sum() 
-=======
-    def l1_penalty(self, var1, var2):
-        sum = torch.abs(var1).sum() + torch.abs(var2).sum()
->>>>>>> 0b69743b5f597a6dc3c3aa80cc5b925371a5c169
         return sum
         
     def training_step(self, inputs, targets):
         """Applies single optimization step on batch"""
         self.model.zero_grad()
         outputs = self.model(inputs)
-<<<<<<< HEAD
         lambda1 = 0.0
         node_weights = [layer.weight for layer in self.model.node_network.network if hasattr(layer, 'weight')]
         edge_weights = [layer.weight for layer in self.model.edge_network.network if hasattr(layer, 'weight')]
         l1_regularization = lambda1 * sum([self.l1_penalty(arr) for arr in node_weights]) + lambda1 * sum([self.l1_penalty(arr) for arr in edge_weights])
-=======
-        lambda1 = 0.01
-        arr_e = self.model.edge_network.network[0].weight 
-        arr_n = self.model.node_network.network[0].weight 
-        l1_regularization = lambda1 * self.l1_penalty(arr_e, arr_n)
->>>>>>> 0b69743b5f597a6dc3c3aa80cc5b925371a5c169
         loss = self.loss_func(outputs, targets) + l1_regularization 
         loss.backward()
         self.optimizer.step()
