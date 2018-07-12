@@ -127,6 +127,29 @@ def select_barrel_hits(hits):
     return (barrel_hits[['evtid', 'barcode', 'phi', 'z']]
             .assign(volume=volume, layer=layer))
 
+def select_hits(hits):
+    # Select all barrel hits
+    vids = [8, 13, 17]
+    hits = hits[np.logical_or.reduce([hits.volid == v for v in vids])]
+    # Re-enumerate the volume and layer numbers for convenience
+    volume = pd.Series(-1, index=hits.index, dtype=np.int8)
+    vid_groups = hits.groupby('volid')
+    for i, v in enumerate(vids):
+        volume[vid_groups.get_group(v).index] = i
+    # This assumes 4 layers per volume (except last volume)
+    layer = (hits.layid / 2 - 1 + volume * 4).astype(np.int8)
+    # Select the columns we need
+    hits = (hits[['evtid', 'barcode', 'r', 'phi', 'z']]
+            .assign(volume=volume, layer=layer))
+    # Filter tracks that hit every layer
+    hits = (hits.groupby(['evtid', 'barcode'])
+            .filter(lambda x: len(x.layer.unique()) == 10))
+    # Remove duplicate hits
+    hits = hits.loc[
+        hits.groupby(['evtid', 'barcode', 'layer'], as_index=False).r.idxmin()
+    ]
+    return hits
+
 def bin_barrel_hits(hits, evtids, vols, bins, ranges):
     """Construct the per-volume images by binning the hits"""
     # Prepare to lookup hits by evtid

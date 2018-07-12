@@ -92,6 +92,7 @@ class Estimator():
 
             # Train the model
             self.model.train()
+            
             for j in range(n_batches):
                 batch_input, batch_target = next(train_generator)
                 batch_loss = (self.training_step(batch_input, batch_target)
@@ -105,40 +106,42 @@ class Estimator():
             logger('  training loss %.3g time %gs' %
                    (avg_loss, (end_time - start_time)))
 
-            # Evaluate the model on the validation set
-            if (valid_generator is not None) and (n_valid_batches > 0):
-                self.model.eval()
-                valid_loss = 0
-                for j in range(n_valid_batches):
-                    valid_input, valid_target = next(valid_generator)
-                    valid_loss += (self.loss_func(self.model(valid_input), valid_target)
-                                   .cpu().data.item())
-                valid_loss = valid_loss / n_valid_batches
-                self.valid_losses.append(valid_loss)
-                logger('  validate loss %.3g' % valid_loss)
+            with torch.no_grad():
+                # Evaluate the model on the validation set
+                if (valid_generator is not None) and (n_valid_batches > 0):
+                    self.model.eval()
+                    valid_loss = 0
+                    for j in range(n_valid_batches):
+                        valid_input, valid_target = next(valid_generator)
+                        valid_loss += (self.loss_func(self.model(valid_input), valid_target)
+                                       .cpu().data.item())
+                    valid_loss = valid_loss / n_valid_batches
+                    self.valid_losses.append(valid_loss)
+                    logger('  validate loss %.3g' % valid_loss)
                 
-                #Save model checkpoint - modified
-                logger(' save checkpoint') 
-                is_best = valid_loss < best_valid_loss
-                best_valid_loss = min(valid_loss, best_valid_loss)
-                self.save_checkpoint({
-                    'epoch': i + 1,
-                    'state_dict': self.model.state_dict(),
-                    'best_valid_loss': best_valid_loss,
-                    'valid_losses': self.valid_losses,
-                    'train_losses': self.train_losses,
-                    'optimizer' : self.optimizer.state_dict(),
-                }, is_best, filename=filename)
+                    #Save model checkpoint - modified
+                    logger(' save checkpoint') 
+                    is_best = valid_loss < best_valid_loss
+                    best_valid_loss = min(valid_loss, best_valid_loss)
+                    self.save_checkpoint({
+                        'epoch': i + 1,
+                        'state_dict': self.model.state_dict(),
+                        'best_valid_loss': best_valid_loss,
+                        'valid_losses': self.valid_losses,
+                        'train_losses': self.train_losses,
+                        'optimizer' : self.optimizer.state_dict(),
+                    }, is_best, filename=filename)
 
     def predict(self, generator, n_batches, concat=True):
-        self.model.eval()
-        outputs = []
-        for j in range(n_batches):
-            test_input, test_target = next(generator)
-            outputs.append(self.model(test_input))
-        if concat:
-            outputs = torch.cat(outputs)
-        return outputs
+        with torch.no_grad():  
+            self.model.eval()
+            outputs = []
+            for j in range(n_batches):
+                test_input, test_target = next(generator)
+                outputs.append(self.model(test_input))
+            if concat:
+                outputs = torch.cat(outputs)
+            return outputs
 
     # DEPRECATED; MOVE TO BATCH GENERATOR VERSION
     def fit(self, train_input, train_target, batch_size=32, n_epochs=1,
