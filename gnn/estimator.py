@@ -32,6 +32,8 @@ class Estimator():
         self.loss_func = loss_func
         if opt == 'Adam':
             self.optimizer = torch.optim.Adam(self.model.parameters())
+        elif opt == 'SGD':
+            self.optimizer = torch.optim.SGD(self.model.parameters())
 
         self.train_losses = train_losses if train_losses is not None else []
         self.valid_losses = valid_losses if valid_losses is not None else []
@@ -48,7 +50,7 @@ class Estimator():
         """Applies single optimization step on batch"""
         self.model.zero_grad()
         outputs = self.model(inputs)
-        lambda1 = 0.0
+        lambda1 = 0.0001
         node_weights = [layer.weight for layer in self.model.node_network.network if hasattr(layer, 'weight')]
         edge_weights = [layer.weight for layer in self.model.edge_network.network if hasattr(layer, 'weight')]
         l1_regularization = lambda1 * sum([self.l1_penalty(arr) for arr in node_weights]) + lambda1 * sum([self.l1_penalty(arr) for arr in edge_weights])
