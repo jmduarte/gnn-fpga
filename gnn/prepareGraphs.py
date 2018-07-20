@@ -25,29 +25,35 @@ def parse_args():
     parser = argparse.ArgumentParser('prepareData.py')
     add_arg = parser.add_argument
     add_arg('--input-dir',
-            default='/global/cscratch1/sd/sfarrell/ACTS/prod_mu10_pt1000_2017_07_29/')
+            default='/cms-sc17/graphNN/prod_mu10_pt1000_2017_07_29/')
+            #default='/global/cscratch1/sd/sfarrell/ACTS/prod_mu10_pt1000_2017_07_29/')
             #default='/global/cscratch1/sd/sfarrell/ACTS/prod_mu200_pt500_2017_07_25')
     add_arg('--output-dir')
     add_arg('--n-files', type=int, default=1)
     add_arg('--n-workers', type=int, default=1)
     add_arg('--n-events', type=int, help='Max events per input file')
+    add_arg('--n-tracks', type=int, help='Max tracks per event')
     add_arg('--phi-slope-max', type=float, default=0.001, help='phi slope cut')
     add_arg('--z0-max-inner', type=float, default=200, help='z0 cut, inner layers')
     add_arg('--z0-max-outer', type=float, default=500, help='z0 cut, outer layers')
     add_arg('--quarter-detector', action='store_true',
             help='Build graph just within (z>0 and phi>0)')
+    add_arg('--no-missing-hits', action='store_true',
+            help='Require no missing hits')
     add_arg('--show-config', action='store_true',
             help='Dump the command line config')
     add_arg('--interactive', action='store_true',
             help='Drop into IPython shell at end of script')
     return parser.parse_args()
 
-def select_hits(hits, quarter_det=False):
+def select_hits(hits, quarter_det=False, no_missing_hits=False):
     """
     Selects barrel hits, removes duplicate hits, and re-enumerates
     the volume and layer numbers for convenience.
     If quarter_det parameter is true, then it will only take hits from
     z > 0 and phi > 0, corresponding to one quarter of the detector.
+    If no_missing_hits parameter is true, then it will only take tracks
+    that hit every layer (10).
     """
     # Select all barrel hits
     vids = [8, 13, 17]
@@ -65,6 +71,10 @@ def select_hits(hits, quarter_det=False):
     # Select the columns we need
     hits = (hits[['evtid', 'barcode', 'r', 'phi', 'z']]
             .assign(volume=volume, layer=layer))
+    if no_missing_hits:
+        # Filter tracks that hit every layer                      
+        hits = (hits.groupby(['evtid', 'barcode'])
+                .filter(lambda x: len(x.layer.unique()) == 10))
     # Remove duplicate hits
     hits = hits.loc[
         hits.groupby(['evtid', 'barcode', 'layer'], as_index=False).r.idxmin()
@@ -113,7 +123,8 @@ def main():
 
         # Apply hit selection
         logging.info('Applying hits selections')
-        sel_func = partial(select_hits, quarter_det=args.quarter_detector)
+        sel_func = partial(select_hits, quarter_det=args.quarter_detector, 
+                           no_missing_hits=args.no_missing_hits)
         hits = pool.map(sel_func, hits)
 
         # Print some summary info
@@ -126,7 +137,8 @@ def main():
                              phi_slope_max=args.phi_slope_max,
                              z0_max_inner=args.z0_max_inner,
                              z0_max_outer=args.z0_max_outer,
-                             max_events=args.n_events)
+                             max_events=args.n_events,
+                             max_tracks=args.n_tracks)
         graphs = pool.map(graph_func, hits)
 
     # Merge across workers into one list of event samples

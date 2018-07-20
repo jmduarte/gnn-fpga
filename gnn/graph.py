@@ -125,19 +125,22 @@ def construct_graph(hits, layer_pairs,
     pid2 = hits.barcode.loc[segments.index_2].values
     y[:] = (pid1 == pid2)
     # Return a tuple of the results
+    #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
     return make_sparse_graph(X, Ri, Ro, y)
     #return Graph(X, Ri, Ro, y)
 
 def construct_graphs(hits, layer_pairs,
                      phi_slope_max, z0_max_inner, z0_max_outer,
-                     max_events=None):
+                     max_events=None, max_tracks=None):
     """
     Construct the full graph representation from the provided hits DataFrame.
     TODO: do we need to save metadata like the evtids?
     Returns: A list of (X, Ri, Ro, y)
     """
-    # Organize hits by event
+    # Organize hits by event 
     evt_hit_groups = hits.groupby('evtid')
+    # Organize hits by event and barcode
+    evt_barcode_hit_groups = hits.groupby(['evtid', 'barcode'])
     evtids = hits.evtid.unique()
     if max_events is not None:
         evtids = evtids[:max_events]
@@ -145,8 +148,15 @@ def construct_graphs(hits, layer_pairs,
     # Loop over events and construct graphs
     graphs = []
     for evtid in evtids:
-        # Get the hits for this event
+        # Get all the hits for this event
         evt_hits = evt_hit_groups.get_group(evtid)
+        if max_tracks is not None:
+            particle_keys = evt_hits['barcode'].drop_duplicates().values
+            np.random.shuffle(particle_keys)
+            sample_keys = particle_keys[0:max_tracks]
+            evt_hits = evt_hits[evt_hits['barcode'].isin(sample_keys)]
+            #print('max tracks:', len(sample_keys))
+            #print('number of hits:', len(evt_hits))
         graph = construct_graph(evt_hits, layer_pairs,
                                 phi_slope_max, z0_max_inner, z0_max_outer)
         graphs.append(graph)
