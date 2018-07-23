@@ -22,7 +22,7 @@ from graph import construct_graphs, save_graphs
 
 
 def parse_args():
-    parser = argparse.ArgumentParser('prepareData.py')
+    parser = argparse.ArgumentParser('prepareGraphs.py')
     add_arg = parser.add_argument
     add_arg('--input-dir',
             default='/cms-sc17/graphNN/prod_mu10_pt1000_2017_07_29/')
@@ -94,6 +94,19 @@ def print_hits_summary(hits):
                  (n_events, n_hits, n_particles,
                   n_particles/n_events, n_hits/n_events))
 
+def print_graphs_summary(sparse_graphs):
+    n_events = 0
+    n_nodes = []
+    n_edges = []
+    for sparse_graph in sparse_graphs:
+        n_nodes.append(sparse_graph.X.shape[0])
+        n_edges.append(sparse_graph.Ri_rows.shape[0])
+        n_events+=1
+    logging.info(('Graphs summary: %i events, %i edges, %i nodes,' +
+                  ' %g edges/event, %g nodes/event') %
+                 (n_events, sum(n_edges), sum(n_nodes),
+                  sum(n_edges)/n_events, sum(n_nodes)/n_events))
+
 def main():
     """Main program function"""
     args = parse_args()
@@ -139,7 +152,10 @@ def main():
                              z0_max_outer=args.z0_max_outer,
                              max_events=args.n_events,
                              max_tracks=args.n_tracks)
+
         graphs = pool.map(graph_func, hits)
+
+        pool.map(print_graphs_summary, graphs)
 
     # Merge across workers into one list of event samples
     graphs = [g for gs in graphs for g in gs]
