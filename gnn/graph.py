@@ -93,8 +93,20 @@ def construct_segments(hits, layer_pairs,
 
 def construct_graph(hits, layer_pairs,
                     phi_slope_max, z0_max,
-                    feature_names, feature_scale):
+                    feature_names, feature_scale,
+                    max_tracks=None,
+                    no_missing_hits=False):
     """Construct one graph (e.g. from one event)"""
+
+    if no_missing_hits:
+        hits = (hits.groupby(['particle_id'])
+                .filter(lambda x: len(x.layer.unique()) == 10))
+    if max_tracks is not None:           
+        particle_keys = hits['particle_id'].drop_duplicates().values
+        np.random.shuffle(particle_keys)
+        sample_keys = particle_keys[0:max_tracks]
+        hits = hits[hits['particle_id'].isin(sample_keys)]
+
     # Construct segments
     segments = construct_segments(hits, layer_pairs,
                                   phi_slope_max=phi_slope_max,

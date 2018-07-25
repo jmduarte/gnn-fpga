@@ -33,7 +33,6 @@ def parse_args():
     add_arg('--n-files', type=int, default=1)
     add_arg('--n-workers', type=int, default=1)
     add_arg('--pt-min', type=float, default=1, help='pt cut')
-    add_arg('--n-events', type=int, help='Max events per input file')
     add_arg('--n-tracks', type=int, help='Max tracks per event')
     add_arg('--phi-slope-max', type=float, default=0.001, help='phi slope cut')
     add_arg('--z0-max', type=float, default=200, help='z0 cut')
@@ -74,8 +73,8 @@ def select_hits(hits, truth, particles, pt_min=0, no_missing_hits=False):
             .assign(r=r, phi=phi)
             .merge(truth[['hit_id', 'particle_id']], on='hit_id'))
     if no_missing_hits:
-        # Filter tracks that hit every layer                      
-        hits = (hits.groupby(['evtid', 'barcode'])
+        # Filter tracks that hit every layer 
+        hits = (hits.groupby(['particle_id'])
                 .filter(lambda x: len(x.layer.unique()) == 10))
     # Remove duplicate hits
     hits = hits.loc[
@@ -86,12 +85,12 @@ def select_hits(hits, truth, particles, pt_min=0, no_missing_hits=False):
 def split_phi_sectors(hits, n_phi_sectors=8, select_phi_sector=False):
     phi_sector_width = 2 * np.pi / n_phi_sectors
     phi_sector_edges = np.linspace(-np.pi, np.pi, n_phi_sectors + 1)
-    print(phi_sector_edges)
+    logging.info("Phi sectors: %s"%phi_sector_edges)
     hits_sectors = []
     if select_phi_sector:        
         n_phi_sectors = 1
         phi_sector_edges = np.linspace(0, phi_sector_width, 2)
-        print(phi_sector_edges)
+        logging.info("Selecting phi sector: %s"%phi_sector_edges)
     # Loop over phi sectors
     for i in range(n_phi_sectors):
         phi_sector_min, phi_sector_max = phi_sector_edges[i:i+2]
@@ -127,7 +126,7 @@ def print_graphs_summary(sparse_graphs):
                  (n_events, sum(n_edges), sum(n_nodes),
                   sum(n_edges)/n_events, sum(n_nodes)/n_events))
 
-def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, z0_max):
+def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, z0_max, no_missing_hits, n_tracks):
     # Load the data
     evtid = int(prefix[-9:])
     logging.info('Event %i, loading data' % evtid)
@@ -136,7 +135,7 @@ def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_ma
 
     # Apply hit selection
     logging.info('Event %i, selecting hits' % evtid)
-    hits = select_hits(hits, truth, particles, pt_min=pt_min).assign(evtid=evtid)
+    hits = select_hits(hits, truth, particles, pt_min=pt_min, no_missing_hits=no_missing_hits).assign(evtid=evtid)
     hits_sectors = split_phi_sectors(hits, n_phi_sectors=n_phi_sectors, select_phi_sector=select_phi_sector)
 
     # Graph features and scale
@@ -153,7 +152,9 @@ def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_ma
     graphs = [construct_graph(sector_hits, layer_pairs=layer_pairs,
                               phi_slope_max=phi_slope_max, z0_max=z0_max,
                               feature_names=feature_names,
-                              feature_scale=feature_scale)
+                              feature_scale=feature_scale,
+                              max_tracks=n_tracks,
+                              no_missing_hits=no_missing_hits)
               for sector_hits in hits_sectors]
 
     return graphs
@@ -186,8 +187,13 @@ def main():
                                n_phi_sectors=args.n_phi_sectors,
                                select_phi_sector=args.select_phi_sector,
                                phi_slope_max=args.phi_slope_max,
-                               z0_max=args.z0_max)
+                               z0_max=args.z0_max,
+                               no_missing_hits=args.no_missing_hits,
+                               n_tracks=args.n_tracks)
         graphs = pool.map(process_func, file_prefixes)
+
+        # Print graphs summary
+        pool.map(print_graphs_summary, graphs)
 
     # Merge across workers into one list of event samples
     graphs = [g for gs in graphs for g in gs]
