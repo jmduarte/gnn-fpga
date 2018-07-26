@@ -24,7 +24,7 @@ class Estimator():
 
     def __init__(self, model, loss_func, opt='Adam',
                  train_losses=None, valid_losses=None,
-                 cuda=False):
+                 cuda=False, l1=0.):
 
         self.model = model
         if cuda:
@@ -37,6 +37,7 @@ class Estimator():
 
         self.train_losses = train_losses if train_losses is not None else []
         self.valid_losses = valid_losses if valid_losses is not None else []
+        self.l1 = l1
 
         logger('Model: \n%s' % model)
         logger('Parameters: %i' %
@@ -50,10 +51,9 @@ class Estimator():
         """Applies single optimization step on batch"""
         self.model.zero_grad()
         outputs = self.model(inputs)
-        lambda1 = 0.0001
         node_weights = [layer.weight for layer in self.model.node_network.network if hasattr(layer, 'weight')]
         edge_weights = [layer.weight for layer in self.model.edge_network.network if hasattr(layer, 'weight')]
-        l1_regularization = lambda1 * sum([self.l1_penalty(arr) for arr in node_weights]) + lambda1 * sum([self.l1_penalty(arr) for arr in edge_weights])
+        l1_regularization = self.l1 * sum([self.l1_penalty(arr) for arr in node_weights]) + self.l1 * sum([self.l1_penalty(arr) for arr in edge_weights])
         loss = self.loss_func(outputs, targets) + l1_regularization 
         loss.backward()
         self.optimizer.step()
