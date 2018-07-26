@@ -200,6 +200,7 @@ def main():
 
     # Write outputs
     if args.output_dir:
+        os.system('mkdir -p %s'%args.output_dir)
         logging.info('Writing outputs to ' + args.output_dir)
 
         # Write out the graphs

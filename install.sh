@@ -6,4 +6,4 @@ conda install --name pytorch-training --file pytorch-training.conda
 source activate pytorch-training
 pip install sklearn scipy
 git clone https://github.com/LAL/trackml-library
-pip install --user trackml-library
+pip install --user trackml-library/
