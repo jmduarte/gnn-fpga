@@ -44,12 +44,12 @@ class Estimator():
                sum(param.numel() for param in model.parameters()))
 
     def l1_penalty(self, arr):
-        sum = torch.abs(arr).sum() #+ torch.abs(arr2).sum() 
-        return sum
+        return torch.abs(arr).sum()
         
     def training_step(self, inputs, targets):
         """Applies single optimization step on batch"""
         self.model.zero_grad()
+        self.optimizer.zero_grad()
         outputs = self.model(inputs)
         node_weights = [layer.weight for layer in self.model.node_network.network if hasattr(layer, 'weight')]
         edge_weights = [layer.weight for layer in self.model.edge_network.network if hasattr(layer, 'weight')]
