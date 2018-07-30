@@ -24,6 +24,15 @@ class EdgeNetwork(nn.Module):
             nn.Linear(hidden_dim, 1),
             nn.Sigmoid())
         self.mask = mask
+        self.network[0].weight.register_hook(self.maskgrads0)
+        self.network[2].weight.register_hook(self.maskgrads1)
+        
+    def maskgrads0(self, grad):
+        return grad * self.mask[0]
+    
+    def maskgrads1(self, grad):
+        return grad * self.mask[1]
+    
     def forward(self, X, Ri, Ro):
         # Select the features of the associated nodes
         bo = torch.bmm(Ro.transpose(1, 2), X)
@@ -33,8 +42,11 @@ class EdgeNetwork(nn.Module):
         if self.mask is not None:
             self.network[0].weight = torch.nn.Parameter(self.network[0].weight * self.mask[0])
             self.network[2].weight = torch.nn.Parameter(self.network[2].weight * self.mask[1])
+            self.network[0].weight.register_hook(self.maskgrads0)
+            self.network[2].weight.register_hook(self.maskgrads1)
         # Apply the network to each edge
         return self.network(B).squeeze(-1)
+
 
 class NodeNetwork(nn.Module):
     """
@@ -52,6 +64,15 @@ class NodeNetwork(nn.Module):
             nn.Linear(output_dim, output_dim),
             hidden_activation())
         self.mask = mask
+        self.network[0].weight.register_hook(self.maskgrads0)
+        self.network[2].weight.register_hook(self.maskgrads1)
+        
+    def maskgrads0(self, grad):
+        return grad * self.mask[0]
+    
+    def maskgrads1(self, grad):
+        return grad * self.mask[1]
+        
     def forward(self, X, e, Ri, Ro):
         bo = torch.bmm(Ro.transpose(1, 2), X)
         bi = torch.bmm(Ri.transpose(1, 2), X)
@@ -64,6 +85,8 @@ class NodeNetwork(nn.Module):
         if self.mask is not None:
             self.network[0].weight = torch.nn.Parameter(self.network[0].weight * self.mask[0])
             self.network[2].weight = torch.nn.Parameter(self.network[2].weight * self.mask[1])
+            self.network[0].weight.register_hook(self.maskgrads0)
+            self.network[2].weight.register_hook(self.maskgrads1)
         return self.network(M)
 
 class SegmentClassifier(nn.Module):
