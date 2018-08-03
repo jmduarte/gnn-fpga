@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-#!/usr/bin/env python
-
 """
 This script is used to construct the graph samples for
 input into the models.
@@ -37,6 +35,8 @@ def parse_args():
     add_arg('--pt-min', type=float, default=1, help='pt cut')
     add_arg('--n-tracks', type=int, help='Max tracks per event')
     add_arg('--phi-slope-max', type=float, default=0.001, help='phi slope cut')
+    add_arg('--phi-slope-mid-max', type=float, default=0.001, help='phi slope middle cut')
+    add_arg('--phi-slope-outer-max', type=float, default=0.001, help='phi slope outer cut')
     add_arg('--z0-max', type=float, default=200, help='z0 cut')
     add_arg('--n-phi-sectors', type=int, default=8,
             help='Break detector into number of phi sectors')
@@ -131,9 +131,9 @@ def print_graphs_summary(sparse_graphs):
                   ' %g edges/event, %g nodes/event') %
                  (n_events, sum(n_edges), np.mean(n_missed_edges), sum(n_nodes),
                   sum(n_edges)/n_events, sum(n_nodes)/n_events))
-    return np.mean(n_missed_edges)
+    return [np.mean(n_missed_edges), np.mean(n_edges)]
 
-def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, z0_max, no_missing_hits, n_tracks):
+def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max, no_missing_hits, n_tracks):
     # Load the data
     evtid = int(prefix[-9:])
     logging.info('Event %i, loading data' % evtid)
@@ -157,7 +157,10 @@ def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_ma
     # Construct the graph
     logging.info('Event %i, constructing graphs' % evtid)
     graphs = [construct_graph(sector_hits, layer_pairs=layer_pairs,
-                              phi_slope_max=phi_slope_max, z0_max=z0_max,
+                              phi_slope_max=phi_slope_max, 
+                              phi_slope_mid_max=phi_slope_mid_max,
+                              phi_slope_outer_max=phi_slope_outer_max,
+                              z0_max=z0_max,
                               feature_names=feature_names,
                               feature_scale=feature_scale,
                               max_tracks=n_tracks,
@@ -189,28 +192,37 @@ def main():
     file_prefixes = file_prefixes[:args.n_files]
 
     # Process input files with a worker pool
-    n_miss_avg = []
+    graph_sum = []
     with mp.Pool(processes=args.n_workers) as pool:
         process_func = partial(process_event, pt_min=args.pt_min,
                                n_phi_sectors=args.n_phi_sectors,
                                select_phi_sector=args.select_phi_sector,
                                phi_slope_max=args.phi_slope_max,
+                               phi_slope_mid_max=args.phi_slope_mid_max,
+                               phi_slope_outer_max=args.phi_slope_outer_max,
                                z0_max=args.z0_max,
                                no_missing_hits=args.no_missing_hits,
                                n_tracks=args.n_tracks)
         graphs = pool.map(process_func, file_prefixes)
         # Print summary info
-        n_miss_avg.append(pool.map(print_graphs_summary, graphs))
+        graph_sum.append(pool.map(print_graphs_summary, graphs))
+        #n_edges.append(pool.map(print_graphs_summary, graphs)[1])
 
     # Merge across workers into one list of event samples
     graphs = [g for gs in graphs for g in gs]
     
     # Merge across workers into one list of event samples
-    n_miss_avg = [n for ns in n_miss_avg for n in ns]
-    print('AVERAGE LIST', n_miss_avg)
-    n_miss_avg = np.mean(n_miss_avg)
-    print('Mean # missing edges:', n_miss_avg) 
-   
+    graph_sum = [n for ns in graph_sum for n in ns]
+    n_miss = []
+    n_edges = []
+    for n in graph_sum:
+        n_miss.append(n[0])
+        n_edges.append(n[1])
+    n_miss = np.mean(n_miss)
+    print('Mean # missing edges:', n_miss) 
+    n_edges = np.mean(n_edges)
+    print('Mean # edges:', n_edges)
+
     # Write outputs
     if args.output_dir:
         os.system('mkdir -p %s'%args.output_dir)
