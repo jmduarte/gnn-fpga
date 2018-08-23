@@ -41,7 +41,7 @@ def calc_dphi(phi1, phi2):
     dphi[dphi < -np.pi] += 2*np.pi
     return dphi
 
-def select_segments(hits1, hits2, phi_slope_max, z0_max):
+def select_segments(hits1, hits2, phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max):
     """
     Construct a list of selected segments from the pairings
     between hits1 and hits2, filtered with the specified
@@ -51,7 +51,7 @@ def select_segments(hits1, hits2, phi_slope_max, z0_max):
     DataFrame hit label-indices in hits1 and hits2, respectively.
     """
     # Start with all possible pairs of hits
-    keys = ['evtid', 'r', 'phi', 'z']
+    keys = ['evtid', 'layer', 'r', 'phi', 'z']
     hit_pairs = hits1[keys].reset_index().merge(
         hits2[keys].reset_index(), on='evtid', suffixes=('_1', '_2'))
     # Compute line through the points
@@ -61,11 +61,12 @@ def select_segments(hits1, hits2, phi_slope_max, z0_max):
     phi_slope = dphi / dr
     z0 = hit_pairs.z_1 - hit_pairs.r_1 * dz / dr
     # Filter segments according to criteria
-    good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)
+    #good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)
+    good_seg_mask = (((phi_slope.abs() < phi_slope_max) & (hit_pairs.layer_1[0] < 5)) | ((phi_slope.abs() < phi_slope_outer_max) & (hit_pairs.layer_1[0] >= 5))) & (z0.abs() < z0_max)  
     return hit_pairs[['index_1', 'index_2']][good_seg_mask]
 
 def construct_segments(hits, layer_pairs,
-                       phi_slope_max, z0_max):
+                       phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max):
     """
     Construct a list of selected segments from hits DataFrame using
     the specified layer pairs and selection criteria.
@@ -87,12 +88,12 @@ def construct_segments(hits, layer_pairs,
             logging.info('skipping empty layer: %s' % e)
             continue
         # Construct the segments
-        segments.append(select_segments(hits1, hits2, phi_slope_max, z0_max))
+        segments.append(select_segments(hits1, hits2, phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max))
     # Combine segments from all layer pairs
     return pd.concat(segments)
 
 def construct_graph(hits, layer_pairs,
-                    phi_slope_max, z0_max,
+                    phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max,
                     feature_names, feature_scale,
                     max_tracks=None,
                     no_missing_hits=False):
@@ -110,6 +111,8 @@ def construct_graph(hits, layer_pairs,
     # Construct segments
     segments = construct_segments(hits, layer_pairs,
                                   phi_slope_max=phi_slope_max,
+                                  phi_slope_mid_max=phi_slope_mid_max,
+                                  phi_slope_outer_max=phi_slope_outer_max,
                                   z0_max=z0_max)
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
@@ -136,11 +139,11 @@ def construct_graph(hits, layer_pairs,
     y[:] = (pid1 == pid2)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
-    return make_sparse_graph(X, Ri, Ro, y)
+    return make_sparse_graph(X, Ri, Ro, y), segments 
     #return Graph(X, Ri, Ro, y)
 
 def construct_graphs(hits, layer_pairs,
-                     phi_slope_max, z0_max_inner, z0_max_outer,
+                     phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max_inner, z0_max_outer,
                      max_events=None, max_tracks=None):
     """
     Construct the full graph representation from the provided hits DataFrame.
@@ -167,7 +170,7 @@ def construct_graphs(hits, layer_pairs,
             #print('max tracks:', len(sample_keys))
             #print('number of hits:', len(evt_hits))
         graph = construct_graph(evt_hits, layer_pairs,
-                                phi_slope_max, z0_max_inner, z0_max_outer)
+                                phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max_inner, z0_max_outer)
         graphs.append(graph)
 
     # Return the results
@@ -175,7 +178,7 @@ def construct_graphs(hits, layer_pairs,
 
 def save_graph(graph, filename):
     """Write a single graph to an NPZ file archive"""
-    np.savez(filename, **graph._asdict())
+    np.savez(filename, **graph[0]._asdict())
     #np.savez(filename, X=graph.X, Ri=graph.Ri, Ro=graph.Ro, y=graph.y)
 
 def save_graphs(graphs, filenames):
@@ -189,3 +192,5 @@ def load_graph(filename, graph_type=Graph):
 
 def load_graphs(filenames, graph_type=Graph):
     return [load_graph(f, graph_type) for f in filenames]
+ 
+

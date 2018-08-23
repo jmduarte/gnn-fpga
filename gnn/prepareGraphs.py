@@ -6,7 +6,7 @@ input into the models.
 """
 
 from __future__ import print_function
-from __future__ import division
+from __future__ import division 
 
 import os
 import logging
@@ -35,6 +35,8 @@ def parse_args():
     add_arg('--pt-min', type=float, default=1, help='pt cut')
     add_arg('--n-tracks', type=int, help='Max tracks per event')
     add_arg('--phi-slope-max', type=float, default=0.001, help='phi slope cut')
+    add_arg('--phi-slope-mid-max', type=float, default=0.001, help='phi slope middle cut')
+    add_arg('--phi-slope-outer-max', type=float, default=0.001, help='phi slope outer cut')
     add_arg('--z0-max', type=float, default=200, help='z0 cut')
     add_arg('--n-phi-sectors', type=int, default=8,
             help='Break detector into number of phi sectors')
@@ -117,14 +119,55 @@ def print_graphs_summary(sparse_graphs):
     n_events = 0
     n_nodes = []
     n_edges = []
+    n_missed_edges = []
     for sparse_graph in sparse_graphs:
-        n_nodes.append(sparse_graph.X.shape[0])
-        n_edges.append(sparse_graph.Ri_rows.shape[0])
+        n_nodes.append(sparse_graph[0].X.shape[0])
+        n_edges.append(sparse_graph[0].Ri_rows.shape[0])
+        n_true_edges = sum(sparse_graph[0].y)
+        n_missing_edges = 90 - n_true_edges
+        n_missed_edges.append(n_missing_edges)
         n_events+=1
-    logging.info(('Graphs summary: %i events, %i edges, %i nodes,' +
+    logging.info(('Graphs summary: %i events, %i edges, %i edges missed, %i nodes,' +
                   ' %g edges/event, %g nodes/event') %
-                 (n_events, sum(n_edges), sum(n_nodes),
+                 (n_events, sum(n_edges), np.mean(n_missed_edges), sum(n_nodes),
                   sum(n_edges)/n_events, sum(n_nodes)/n_events))
+    return [np.mean(n_missed_edges), np.mean(n_edges)]
+
+def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, phi_slope_mid_max, phi_slope_outer_max, z0_max, no_missing_hits, n_tracks):
+    # Load the data
+    evtid = int(prefix[-9:])
+    logging.info('Event %i, loading data' % evtid)
+    hits, particles, truth = dataset.load_event(
+        prefix, parts=['hits', 'particles', 'truth'])
+
+    # Apply hit selection
+    logging.info('Event %i, selecting hits' % evtid)
+    hits = select_hits(hits, truth, particles, pt_min=pt_min, no_missing_hits=no_missing_hits).assign(evtid=evtid)
+    hits_sectors = split_phi_sectors(hits, n_phi_sectors=n_phi_sectors, select_phi_sector=select_phi_sector)
+
+    # Graph features and scale
+    feature_names = ['r', 'phi', 'z']
+    feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
+
+    # Define adjacent layers
+    n_det_layers = 10
+    l = np.arange(n_det_layers)
+    layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
+
+    # Construct the graph
+    logging.info('Event %i, constructing graphs' % evtid)
+    graphs = [construct_graph(sector_hits, layer_pairs=layer_pairs,
+                              phi_slope_max=phi_slope_max, 
+                              phi_slope_mid_max=phi_slope_mid_max,
+                              phi_slope_outer_max=phi_slope_outer_max,
+                              z0_max=z0_max,
+                              feature_names=feature_names,
+                              feature_scale=feature_scale,
+                              max_tracks=n_tracks,
+                              no_missing_hits=no_missing_hits)
+              for sector_hits in hits_sectors]
+
+    return graphs
 
 def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, z0_max, no_missing_hits, n_tracks):
     # Load the data
@@ -182,21 +225,39 @@ def main():
     file_prefixes = file_prefixes[:args.n_files]
 
     # Process input files with a worker pool
+    graph_sum = []
     with mp.Pool(processes=args.n_workers) as pool:
         process_func = partial(process_event, pt_min=args.pt_min,
                                n_phi_sectors=args.n_phi_sectors,
                                select_phi_sector=args.select_phi_sector,
                                phi_slope_max=args.phi_slope_max,
+                               phi_slope_mid_max=args.phi_slope_mid_max,
+                               phi_slope_outer_max=args.phi_slope_outer_max,
+
                                z0_max=args.z0_max,
                                no_missing_hits=args.no_missing_hits,
                                n_tracks=args.n_tracks)
         graphs = pool.map(process_func, file_prefixes)
 
-        # Print graphs summary
-        pool.map(print_graphs_summary, graphs)
+        # Print summary info
+        graph_sum.append(pool.map(print_graphs_summary, graphs))
+        #n_edges.append(pool.map(print_graphs_summary, graphs)[1])
+
 
     # Merge across workers into one list of event samples
     graphs = [g for gs in graphs for g in gs]
+    
+    # Merge across workers into one list of event samples
+    graph_sum = [n for ns in graph_sum for n in ns]
+    n_miss = []
+    n_edges = []
+    for n in graph_sum:
+        n_miss.append(n[0])
+        n_edges.append(n[1])
+    n_miss = np.mean(n_miss)
+    print('Mean # missing edges:', n_miss) 
+    n_edges = np.mean(n_edges)
+    print('Mean # edges:', n_edges)
 
     # Write outputs
     if args.output_dir:
