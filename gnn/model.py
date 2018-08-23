@@ -7,7 +7,31 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
+cuda=True
+
+class MaskedLinear(nn.Linear):
+    def __init__(self, in_features, out_features, bias=True):
+        super(MaskedLinear, self).__init__(in_features, out_features, bias)
+        self.mask_flag = False
+    
+    def set_mask(self, mask):
+        self.mask = mask
+        self.weight.data = self.weight.data*self.mask.data
+        self.mask_flag = True
+    
+    def get_mask(self):
+        print(self.mask_flag)
+        return self.mask
+    
+    def forward(self, x):
+        if self.mask_flag == True:
+            weight = self.weight*self.mask
+            return F.linear(x, weight, self.bias)
+        else:
+            return F.linear(x, self.weight, self.bias)
+        
 
 class EdgeNetwork(nn.Module):
     """
@@ -19,22 +43,43 @@ class EdgeNetwork(nn.Module):
     def __init__(self, input_dim, hidden_dim=8, hidden_activation=nn.Tanh, mask=None):
         super(EdgeNetwork, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_dim*2, hidden_dim),
+            MaskedLinear(input_dim*2, hidden_dim),
             hidden_activation(),
-            nn.Linear(hidden_dim, 1),
+            MaskedLinear(hidden_dim, 1),
             nn.Sigmoid())
         self.mask = mask
+        if self.mask is not None:
+            self.network[0].set_mask(self.mask[0])
+            self.network[2].set_mask(self.mask[1])
+        #self.network[0].weight.register_hook(self.maskgrads0)
+        #self.network[2].weight.register_hook(self.maskgrads1)
+        
+    def maskgrads0(self, grad):
+        if self.mask is not None:
+            print('grad', grad.size())
+            print('self.mask[0]', self.mask[0].size())
+            return grad * self.mask[0]
+    
+    def maskgrads1(self, grad):
+        if self.mask is not None:
+            print('grad', grad.size())
+            print('self.mask[1]', self.mask[1].size())
+            return grad * self.mask[1]
+    
     def forward(self, X, Ri, Ro):
         # Select the features of the associated nodes
         bo = torch.bmm(Ro.transpose(1, 2), X)
         bi = torch.bmm(Ri.transpose(1, 2), X)
         B = torch.cat([bo, bi], dim=2)
         # Mask these weights
-        if self.mask is not None:
-            self.network[0].weight = torch.nn.Parameter(self.network[0].weight * self.mask[0])
-            self.network[2].weight = torch.nn.Parameter(self.network[2].weight * self.mask[1])
+        #if self.mask is not None:
+            #self.network[0].weight.data[self.mask[0]!=1] = 0
+            #self.network[2].weight.data[self.mask[1]!=1] = 0
+            #self.network[0].weight.register_hook(self.maskgrads0)
+            #self.network[2].weight.register_hook(self.maskgrads1)
         # Apply the network to each edge
         return self.network(B).squeeze(-1)
+
 
 class NodeNetwork(nn.Module):
     """
@@ -47,11 +92,24 @@ class NodeNetwork(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_activation=nn.Tanh, mask=None):
         super(NodeNetwork, self).__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_dim*3, output_dim),
+            MaskedLinear(input_dim*3, output_dim),
             hidden_activation(),
-            nn.Linear(output_dim, output_dim),
+            MaskedLinear(output_dim, output_dim),
             hidden_activation())
         self.mask = mask
+        self.network[0].set_mask(self.mask[0])
+        self.network[2].set_mask(self.mask[1])
+        #self.network[0].weight.register_hook(self.maskgrads0)
+        #self.network[2].weight.register_hook(self.maskgrads1)
+        
+    def maskgrads0(self, grad):
+        if self.mask is not None:
+            return grad * self.mask[0]
+    
+    def maskgrads1(self, grad):
+        if self.mask is not None:
+            return grad * self.mask[1]
+        
     def forward(self, X, e, Ri, Ro):
         bo = torch.bmm(Ro.transpose(1, 2), X)
         bi = torch.bmm(Ri.transpose(1, 2), X)
@@ -61,9 +119,9 @@ class NodeNetwork(nn.Module):
         mo = torch.bmm(Rwo, bi)
         M = torch.cat([mi, mo, X], dim=2)
         # Mask these weights
-        if self.mask is not None:
-            self.network[0].weight = torch.nn.Parameter(self.network[0].weight * self.mask[0])
-            self.network[2].weight = torch.nn.Parameter(self.network[2].weight * self.mask[1])
+        #if self.mask is not None:
+            #self.network[0].weight = torch.nn.Parameter(self.network[0].weight * self.mask[0])
+            #self.network[2].weight = torch.nn.Parameter(self.network[2].weight * self.mask[1])
         return self.network(M)
 
 class SegmentClassifier(nn.Module):
