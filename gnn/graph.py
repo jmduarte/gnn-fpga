@@ -11,8 +11,8 @@ import pandas as pd
 
 
 # Global feature details
-feature_names = ['r', 'phi', 'z']
-feature_scale = np.array([1000., np.pi, 1000.])
+#feature_names = ['r', 'phi', 'z']
+#feature_scale = np.array([1000., np.pi, 1000.])
 
 # Graph is a namedtuple of (X, Ri, Ro, y) for convenience
 Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y'])
@@ -65,7 +65,7 @@ def select_segments(hits1, hits2, phi_slope_max, z0_max):
     return hit_pairs[['index_1', 'index_2']][good_seg_mask]
 
 def construct_segments(hits, layer_pairs,
-                       phi_slope_max, z0_max_inner, z0_max_outer):
+                       phi_slope_max, z0_max):
     """
     Construct a list of selected segments from hits DataFrame using
     the specified layer pairs and selection criteria.
@@ -86,24 +86,34 @@ def construct_segments(hits, layer_pairs,
         except KeyError as e:
             logging.info('skipping empty layer: %s' % e)
             continue
-        # Segment criteria
-        z0_max = z0_max_outer if (layer1 >= 8) or (layer2 >= 8) else z0_max_inner
         # Construct the segments
         segments.append(select_segments(hits1, hits2, phi_slope_max, z0_max))
     # Combine segments from all layer pairs
     return pd.concat(segments)
 
 def construct_graph(hits, layer_pairs,
-                    phi_slope_max, z0_max_inner, z0_max_outer):
+                    phi_slope_max, z0_max,
+                    feature_names, feature_scale,
+                    max_tracks=None,
+                    no_missing_hits=False):
     """Construct one graph (e.g. from one event)"""
+
+    if no_missing_hits:
+        hits = (hits.groupby(['particle_id'])
+                .filter(lambda x: len(x.layer.unique()) == 10))
+    if max_tracks is not None:           
+        particle_keys = hits['particle_id'].drop_duplicates().values
+        np.random.shuffle(particle_keys)
+        sample_keys = particle_keys[0:max_tracks]
+        hits = hits[hits['particle_id'].isin(sample_keys)]
+
     # Construct segments
     segments = construct_segments(hits, layer_pairs,
                                   phi_slope_max=phi_slope_max,
-                                  z0_max_inner=z0_max_inner,
-                                  z0_max_outer=z0_max_outer)
+                                  z0_max=z0_max)
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
-    evtid = hits.evtid.unique()
+    #evtid = hits.evtid.unique()
     # Prepare the tensors
     X = (hits[feature_names].values / feature_scale).astype(np.float32)
     Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
@@ -121,8 +131,8 @@ def construct_graph(hits, layer_pairs,
     Ri[seg_end, np.arange(n_edges)] = 1
     Ro[seg_start, np.arange(n_edges)] = 1
     # Fill the segment labels
-    pid1 = hits.barcode.loc[segments.index_1].values
-    pid2 = hits.barcode.loc[segments.index_2].values
+    pid1 = hits.particle_id.loc[segments.index_1].values
+    pid2 = hits.particle_id.loc[segments.index_2].values
     y[:] = (pid1 == pid2)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
@@ -134,7 +144,6 @@ def construct_graphs(hits, layer_pairs,
                      max_events=None, max_tracks=None):
     """
     Construct the full graph representation from the provided hits DataFrame.
-    TODO: do we need to save metadata like the evtids?
     Returns: A list of (X, Ri, Ro, y)
     """
     # Organize hits by event 
