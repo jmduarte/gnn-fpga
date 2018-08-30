@@ -51,13 +51,13 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     DataFrame hit label-indices in hits1 and hits2, respectively.
     """
     # Start with all possible pairs of hits
-    keys = ['vp_event', 'vh_layer', 'vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
+    keys = ['event_id', 'vh_layer', 'vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
    # hits1.reset_index(drop=True, inplace=True)
    # hits2.reset_index(drop=True, inplace=True)
-    print('HITS1 keys', hits1)
+    print('HITS1', hits1)
     print('HITS2 keys', hits2[keys])
     hit_pairs = hits1[keys].reset_index().merge(
-        hits2[keys].reset_index(), on='vp_event', suffixes=('_1', '_2')) 
+        hits2[keys].reset_index(), on='event_id', suffixes=('_1', '_2')) 
     print('HIT PAIRS', hit_pairs)
     # Compute line through the points
     dphi = calc_dphi(hit_pairs.vh_sim_phi_1, hit_pairs.vh_sim_phi_2)
@@ -69,7 +69,7 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     #Filter segments according to criteria
     #good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)
     good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)  
-    return hit_pairs[['index_1', 'index_2']][good_seg_mask]
+    return hit_pairs[['subentry_1', 'subentry_2']][good_seg_mask]
 
 def construct_segments(hits, layer_pairs):
     """
@@ -128,11 +128,15 @@ def construct_graph(hits, layer_pairs,
     # so we need to translate into positional indices.
     # Use a series to map hit label-index onto positional-index.
     hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
-    seg_start = hit_idx.loc[segments.index_1].values
-    seg_end = hit_idx.loc[segments.index_2].values
+    #hit_idx.columns = hit_idx.columns.droplevel(0)
+    seg_start = hit_idx.loc[segments.subentry_1].values
+    seg_end = hit_idx.loc[segments.subentry_2].values
     # Now we can fill the association matrices.
     # Note that Ri maps hits onto their incoming edges,
     # which are actually segment endings.
+    print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
+    print('HIT_IDX', type(hit_idx), hit_idx)
+    print('segments.subentry_1', type(segments.subentry_1), segments.subentry_1)
     Ri[seg_end, np.arange(n_edges)] = 1
     Ro[seg_start, np.arange(n_edges)] = 1
     # Fill the segment labels
