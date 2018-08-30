@@ -109,6 +109,16 @@ def main():
     df['isMuon'] = np.ones(len(df))
     df_pu['isMuon'] = np.zeros(len(df_pu))
     
+    index_frame = df.index.to_frame()
+    print(index_frame['entry'])
+    df['event_id'] = index_frame['entry']
+    
+    index_frame_pu = df_pu.index.to_frame()
+    df_pu['event_id'] = index_frame_pu['entry']
+    
+    #df.reset_index(level=['entry','subentry'], inplace=True)
+    #df_pu.reset_index(level=['entry','subentry'], inplace=True)
+    
     sector_hits = df
     print('\nevents:', df)
     
