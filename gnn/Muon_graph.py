@@ -127,23 +127,30 @@ def construct_graph(hits, layer_pairs,
     # We have the segments' hits given by dataframe label,
     # so we need to translate into positional indices.
     # Use a series to map hit label-index onto positional-index.
+    
+    # Get rid of multiindex in hits.index
+    hits.index = hits.index.droplevel(level=0)
+    
     hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
-    #hit_idx.columns = hit_idx.columns.droplevel(0)
     seg_start = hit_idx.loc[segments.subentry_1].values
     seg_end = hit_idx.loc[segments.subentry_2].values
     # Now we can fill the association matrices.
     # Note that Ri maps hits onto their incoming edges,
     # which are actually segment endings.
+    print('HITS.INDEX', type(hits.index), hits.index)
     print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
     print('HIT_IDX', type(hit_idx), hit_idx)
+    print('hit_idx.loc[segments.subentry_2]', hit_idx.loc[segments.subentry_2])
     print('segments.subentry_1', type(segments.subentry_1), segments.subentry_1)
-    Ri[seg_end, np.arange(n_edges)] = 1
-    Ro[seg_start, np.arange(n_edges)] = 1
+    Ri[seg_end[0], np.arange(n_edges)[0]] = 1
+    Ro[seg_start[0], np.arange(n_edges)[0]] = 1
     # Fill the segment labels
-    pid1 = hits.isMuon.loc[segments.index_1].values
-    pid2 = hits.isMuon.loc[segments.index_2].values
+    
+    ##PROBLEM HERE -- should not be using isMuon? 
+    pid1 = hits.isMuon.loc[segments.subentry_1].values
+    pid2 = hits.isMuon.loc[segments.subentry_2].values
     y[:] = (pid1 == pid2) # & = 1
-    print('Y:', y)
+    print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
     return make_sparse_graph(X, Ri, Ro, y), segments  
