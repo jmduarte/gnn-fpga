@@ -146,7 +146,7 @@ def construct_graph(hits, layer_pairs,
     Ro[seg_start[0], np.arange(n_edges)[0]] = 1
     # Fill the segment labels
     
-    ##PROBLEM HERE -- should not be using isMuon? 
+    # PROBLEM HERE  
     pid1 = hits.isMuon.loc[segments.subentry_1].values
     pid2 = hits.isMuon.loc[segments.subentry_2].values
     y[:] = (pid1 == pid2) # & = 1
