@@ -169,39 +169,6 @@ def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_ma
 
     return graphs
 
-def process_event(prefix, pt_min, n_phi_sectors, select_phi_sector, phi_slope_max, z0_max, no_missing_hits, n_tracks):
-    # Load the data
-    evtid = int(prefix[-9:])
-    logging.info('Event %i, loading data' % evtid)
-    hits, particles, truth = dataset.load_event(
-        prefix, parts=['hits', 'particles', 'truth'])
-
-    # Apply hit selection
-    logging.info('Event %i, selecting hits' % evtid)
-    hits = select_hits(hits, truth, particles, pt_min=pt_min, no_missing_hits=no_missing_hits).assign(evtid=evtid)
-    hits_sectors = split_phi_sectors(hits, n_phi_sectors=n_phi_sectors, select_phi_sector=select_phi_sector)
-
-    # Graph features and scale
-    feature_names = ['r', 'phi', 'z']
-    feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
-
-    # Define adjacent layers
-    n_det_layers = 10
-    l = np.arange(n_det_layers)
-    layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
-
-    # Construct the graph
-    logging.info('Event %i, constructing graphs' % evtid)
-    graphs = [construct_graph(sector_hits, layer_pairs=layer_pairs,
-                              phi_slope_max=phi_slope_max, z0_max=z0_max,
-                              feature_names=feature_names,
-                              feature_scale=feature_scale,
-                              max_tracks=n_tracks,
-                              no_missing_hits=no_missing_hits)
-              for sector_hits in hits_sectors]
-
-    return graphs
-
 def main():
     """Main program function"""
     args = parse_args()
