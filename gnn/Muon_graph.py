@@ -105,7 +105,7 @@ def construct_graph(hits, layer_pairs,
 
     if no_missing_hits:
         hits = (hits.groupby(['particle_id'])
-                .filter(lambda x: len(x.layer.unique()) == 12))#10))
+                .filter(lambda x: len(x.layer.unique()) == 12))
     if max_tracks is not None:           
         particle_keys = hits['particle_id'].drop_duplicates().values
         np.random.shuffle(particle_keys)
