@@ -8,6 +8,11 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+import math
+import matplotlib.pyplot as plt
+from scipy.sparse import csr_matrix, find
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import cKDTree
 
 
 # Global feature details
@@ -57,7 +62,7 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     print('HITS1', hits1)
     print('HITS2 keys', hits2[keys])
     hit_pairs = hits1[keys].reset_index().merge(
-        hits2[keys].reset_index(), on='event_id', suffixes=('_1', '_2')) 
+        hits2[keys].reset_index(), on='entry', suffixes=('_1', '_2')) 
     print('HIT PAIRS', hit_pairs)
     # Compute line through the points
     dphi = calc_dphi(hit_pairs.vh_sim_phi_1, hit_pairs.vh_sim_phi_2)
@@ -67,7 +72,6 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     phi_slope = dphi / dr
     z0 = hit_pairs.vh_sim_z_1 - hit_pairs.vh_sim_r_1 * dz / dr
     #Filter segments according to criteria
-    #good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)
     good_seg_mask = (phi_slope.abs() < phi_slope_max) & (z0.abs() < z0_max)  
     return hit_pairs[['subentry_1', 'subentry_2']][good_seg_mask]
 
@@ -93,7 +97,10 @@ def construct_segments(hits, layer_pairs):
             logging.info('SKIPPING empty layer: %s' % e)
             continue
         # Construct the segments
+        print("hits1",hits1)
+        print("hits2",hits2)
         segments.append(select_segments(hits1, hits2))
+    print("segments:",segments)
     # Combine segments from all layer pairs
     return pd.concat(segments)
 
@@ -104,13 +111,13 @@ def construct_graph(hits, layer_pairs,
     """Construct one graph (e.g. from one event)"""
 
     if no_missing_hits:
-        hits = (hits.groupby(['particle_id'])
+        hits = (hits.groupby(['isMuon'])
                 .filter(lambda x: len(x.layer.unique()) == 12))
     if max_tracks is not None:           
-        particle_keys = hits['particle_id'].drop_duplicates().values
+        particle_keys = hits['isMuon'].drop_duplicates().values
         np.random.shuffle(particle_keys)
         sample_keys = particle_keys[0:max_tracks]
-        hits = hits[hits['particle_id'].isin(sample_keys)]
+        hits = hits[hits['isMuon'].isin(sample_keys)]
 
     # Construct segments
     segments = construct_segments(hits, layer_pairs)
@@ -127,28 +134,36 @@ def construct_graph(hits, layer_pairs,
     # We have the segments' hits given by dataframe label,
     # so we need to translate into positional indices.
     # Use a series to map hit label-index onto positional-index.
-    
     # Get rid of multiindex in hits.index
     hits.index = hits.index.droplevel(level=0)
-    
     hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
+    print("hits index:",hits.index)
+    print("hit_idx:",hit_idx)
+    print('segments.subentry_1', segments.subentry_1)
+    print('segments.subentry_2', segments.subentry_2)
     seg_start = hit_idx.loc[segments.subentry_1].values
     seg_end = hit_idx.loc[segments.subentry_2].values
+    print("seg_start:",seg_start)
+    print("seg_end:",seg_end)
     # Now we can fill the association matrices.
     # Note that Ri maps hits onto their incoming edges,
     # which are actually segment endings.
     print('HITS.INDEX', type(hits.index), hits.index)
     print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
     print('HIT_IDX', type(hit_idx), hit_idx)
-    print('hit_idx.loc[segments.subentry_2]', hit_idx.loc[segments.subentry_2])
-    print('segments.subentry_1', type(segments.subentry_1), segments.subentry_1)
-    Ri[seg_end[0], np.arange(n_edges)[0]] = 1
-    Ro[seg_start[0], np.arange(n_edges)[0]] = 1
+    #Ri[seg_end[0], np.arange(n_edges)[0]] = 1
+    #Ro[seg_start[0], np.arange(n_edges)[0]] = 1
+    Ri[seg_end, np.arange(n_edges)] = 1
+    Ro[seg_start, np.arange(n_edges)] = 1
+    print("Ri shape:", Ri.shape)
+    print("Ri matrix:", Ri)
+    print("Ro matrix:", Ro)
     # Fill the segment labels
-    
     # PROBLEM HERE  
-    pid1 = hits.isMuon.loc[segments.subentry_1].values
-    pid2 = hits.isMuon.loc[segments.subentry_2].values
+    pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
+    pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
+    #pid1 = hits.isMuon.loc[segments.subentry_1].values
+    #pid2 = hits.isMuon.loc[segments.subentry_2].values
     y[:] = (pid1 == pid2) # & = 1
     print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
@@ -163,10 +178,10 @@ def construct_graphs(hits, layer_pairs,
     Returns: A list of (X, Ri, Ro, y)
     """
     # Organize hits by event 
-    evt_hit_groups = hits.groupby('evtid')
+    evt_hit_groups = hits.groupby('event_id')
     # Organize hits by event and barcode
-    evt_barcode_hit_groups = hits.groupby(['evtid', 'barcode'])
-    evtids = hits.evtid.unique()
+    evt_barcode_hit_groups = hits.groupby(['event_id', 'entry'])
+    evtids = hits.event_id.unique()
     if max_events is not None:
         evtids = evtids[:max_events]
 
@@ -176,10 +191,10 @@ def construct_graphs(hits, layer_pairs,
         # Get all the hits for this event
         evt_hits = evt_hit_groups.get_group(evtid)
         if max_tracks is not None:
-            particle_keys = evt_hits['barcode'].drop_duplicates().values
+            particle_keys = evt_hits['entry'].drop_duplicates().values
             np.random.shuffle(particle_keys)
             sample_keys = particle_keys[0:max_tracks]
-            evt_hits = evt_hits[evt_hits['barcode'].isin(sample_keys)]
+            evt_hits = evt_hits[evt_hits['entry'].isin(sample_keys)]
             #print('max tracks:', len(sample_keys))
             #print('number of hits:', len(evt_hits))
         graph = construct_graph(evt_hits, layer_pairs,

@@ -24,13 +24,17 @@ def parse_args():
     parser = argparse.ArgumentParser('prepareGraphs.py')
     add_arg = parser.add_argument
     add_arg('--input-muon-dir',
-            default='/data/jduarte1/muon/')
+            default='/data/mliu/endcapmuons/singledata/')
     add_arg('--input-pu-dir',
-            default='/data/jduarte1/pu/')
+            default='/data/mliu/endcapmuons/singledata_pu200/')
+    add_arg('--muononly',
+            default=True)
     add_arg('--max-files',
             default=1)
     add_arg('--max-events',
-            default=10)
+            default=3)
+    add_arg('--output-dir',
+            default="./")
     return parser.parse_args()
 
 
@@ -94,7 +98,6 @@ def main():
 
         upfile_muon = uproot.open(file_prefix_muon + '.root')
         upfile_pu = uproot.open(file_prefix_pu + '.root')
-
     
         print('\ntree contents:')
         # open tree, list variables
@@ -114,16 +117,16 @@ def main():
         # get first max_events events and put it in dataframe
         print('reading only %i events'%args.max_events)
         df_muon = tree_muon.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
-                                       'vh_type','vh_station','vh_ring'], entrystart=0, entrystop=args.max_events)
-
+                         'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=0, entrystop=args.max_events)
+        # filtering out events with layer number which equals -99
         df_pu = tree_pu.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
                                    'vh_type','vh_station','vh_ring'], entrystart=0, entrystop=args.max_events)
-    
-    
 
         # get layer number from (vh_type, vh_station, vh_ring)
         df_muon['vh_layer'] = df_muon.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
         df_pu['vh_layer'] = df_pu.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
+        df_muon = df_muon[df_muon["vh_layer"]>=0]
+        df_pu = df_pu[df_pu["vh_layer"]>=0]
     
         df_muon['isMuon'] = np.ones(len(df_muon))
         df_pu['isMuon'] = np.zeros(len(df_pu))
@@ -137,7 +140,6 @@ def main():
         print('\nmuon events:', df_muon)
         print('\npu events:', df_pu)
     
-    
         # get only true muon hits (generator-level matching condition)!
         df_muon = df_muon[(df_muon['vh_sim_tp1']==0) & (df_muon['vh_sim_tp2']==0)]   
         frames_muon = []
@@ -145,6 +147,7 @@ def main():
         frames_all = []
         hits = []
         hit_distr = [0]*12
+
         for entry, new_df_muon in df_muon.groupby(level=0):
             new_df_muon = new_df_muon.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_muon.append(new_df_muon)
@@ -172,16 +175,30 @@ def main():
         l = np.arange(n_det_layers)
         layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
     
-        feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
-        n_phi_sectors = 1
-        feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
+        #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
+        #n_phi_sectors = 1
+        #feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
+        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']
+        n_phi_sectors = 6
+        feature_scale = np.array([1.,1 ,1 ,np.pi / n_phi_sectors, 1.])
       
-    
-        for entry_all, new_df_all in df_all.groupby(level=0):
+        df = df_all
+        if args.muononly: df = df_muon
+        for entry_all, new_df_all in df.groupby(level=0):
             graph = [construct_graph(new_df_all, layer_pairs=layer_pairs,
                                      feature_names=feature_names,
                                      feature_scale=feature_scale)]
             graphs.append(graph)
+        
+        # Write outputs
+        graphs = [g for gs in graphs for g in gs]
+        if args.output_dir:
+           os.system('mkdir -p %s'%args.output_dir)
+           logging.info('Writing outputs to ' + args.output_dir)
+        # Write out the graphs
+        filenames = [os.path.join(args.output_dir, 'graph%06i' % i)
+                     for i in range(len(graphs))]
+        save_graphs(graphs, filenames)
     return graphs
 
 if __name__ == '__main__':
