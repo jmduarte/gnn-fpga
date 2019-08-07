@@ -220,3 +220,58 @@ def load_graph(filename, graph_type=Graph):
 
 def load_graphs(filenames, graph_type=Graph):
     return [load_graph(f, graph_type) for f in filenames]
+
+def draw_sample(X, Ri, Ro, y, 
+                cmap='bwr_r', 
+                skip_false_edges=True,
+                alpha_labels=False, 
+                sim_list=None): 
+    # Select the i/o node features for each segment    
+    # Prepare the figure
+    fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
+    cmap = plt.get_cmap(cmap)
+    print(np.rot90(Ri))
+    print(np.rot90(Ro))
+    print("input features:",find(np.rot90(Ri))) 
+    print("output features:", find(np.rot90(Ro)))
+    print('X:',X) 
+    print("X shape:",X.shape)
+    feats_o = X[find(np.rot90(Ri))[1]]
+    feats_i = X[find(np.rot90(Ro))[1]]  
+    print("feats_o:",feats_o)
+    print(feats_o.shape)
+    print("feats_i:",feats_i)
+    print(feats_i.shape)
+    
+    if sim_list is None:    
+        # Draw the hits (layer, theta, z)
+        ax0.scatter(X[:,2], X[:,1], c='k')
+        ax1.scatter(X[:,0], X[:,1], c='k')
+    else:        
+        #ax0.scatter(X[:,0], X[:,2], c='k')
+        #ax1.scatter(X[:,1], X[:,2], c='k')
+        ax0.scatter(X[sim_list,0], X[sim_list,2], c='b')
+        ax1.scatter(X[sim_list,1], X[sim_list,2], c='b')
+    
+    # Draw the segments
+    for j in range(y.shape[0]):
+        if not y[j] and skip_false_edges: continue
+        if alpha_labels:
+            seg_args = dict(c='k', alpha=float(y[j]))
+        else:
+            seg_args = dict(c=cmap(float(y[j])))
+        ax0.plot([feats_o[j,2], feats_i[j,2]],
+                 [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
+        ax1.plot([feats_o[j,0], feats_i[j,0]],
+                 [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
+        #ax0.plot([feats_o[0,0], feats_i[0,0]],
+        #         [feats_o[0,2], feats_i[0,2]], '-', **seg_args)
+        #ax1.plot([feats_o[0,1], feats_i[0,1]],
+        #         [feats_o[0,2], feats_i[0,2]], '-', **seg_args)
+    # Adjust axes
+    ax0.set_xlabel('$layer$ [arb]')
+    ax0.set_ylabel('$theta$')
+    ax1.set_xlabel('$z$ [cm]')
+    ax1.set_ylabel('$theta$')
+    plt.tight_layout()
+
