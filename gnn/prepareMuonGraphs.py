@@ -86,7 +86,7 @@ def main():
 
     file_prefixes_muon = file_prefixes_muon[0:int(args.max_files)]
     file_prefixes_pu = file_prefixes_pu[0:int(args.max_files)]
-    print('\njust reading up to %i files'%args.max_files)
+    print('\njust reading up to %i files'%int(args.max_files))
     print('\nmuon files:', file_prefixes_muon)
     print('\npu files:', file_prefixes_pu)
 
