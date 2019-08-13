@@ -57,12 +57,16 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     """
     # Start with all possible pairs of hits
     keys = ['event_id', 'vh_layer', 'vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
-   # hits1.reset_index(drop=True, inplace=True)
-   # hits2.reset_index(drop=True, inplace=True)
-    print('HITS1', hits1)
-    print('HITS2 keys', hits2[keys])
-    hit_pairs = hits1[keys].reset_index().merge(
-        hits2[keys].reset_index(), on='entry', suffixes=('_1', '_2')) 
+#    hits1.reset_index(drop=True, inplace=True)
+#    hits2.reset_index(drop=True, inplace=True)
+    
+    print('HITS1:', hits1)
+    #hits1.reset_index(drop=True, inplace=True)
+    print('HITS1 after reset index:', hits1)  
+    print('HITS2 keys:', hits2)
+    #print(hits1.reset_index(drop=True))
+    hit_pairs = hits1.merge(
+        hits2, on="entry",suffixes=('_1', '_2')) 
     print('HIT PAIRS', hit_pairs)
     # Compute line through the points
     dphi = calc_dphi(hit_pairs.vh_sim_phi_1, hit_pairs.vh_sim_phi_2)
@@ -121,7 +125,7 @@ def construct_graph(hits, layer_pairs,
 
     # Construct segments
     segments = construct_segments(hits, layer_pairs)
-    
+    print("segments:",segments) 
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
     #evtid = hits.evtid.unique()
@@ -135,12 +139,12 @@ def construct_graph(hits, layer_pairs,
     # so we need to translate into positional indices.
     # Use a series to map hit label-index onto positional-index.
     # Get rid of multiindex in hits.index
-    hits.index = hits.index.droplevel(level=0)
+    #hits.index = hits.index.droplevel(level=0)
     hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
-    print("hits index:",hits.index)
-    print("hit_idx:",hit_idx)
-    print('segments.subentry_1', segments.subentry_1)
-    print('segments.subentry_2', segments.subentry_2)
+    #print("hits index:",hits.index)
+    #print("hit_idx:",hit_idx)
+#    print('segments.subentry_1', segments.subentry_1)
+#    print('segments.subentry_2', segments.subentry_2)
     seg_start = hit_idx.loc[segments.subentry_1].values
     seg_end = hit_idx.loc[segments.subentry_2].values
     print("seg_start:",seg_start)
@@ -149,10 +153,12 @@ def construct_graph(hits, layer_pairs,
     # Note that Ri maps hits onto their incoming edges,
     # which are actually segment endings.
     print('HITS.INDEX', type(hits.index), hits.index)
-    print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
-    print('HIT_IDX', type(hit_idx), hit_idx)
+#    print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
+    #print('HIT_IDX', type(hit_idx), hit_idx)
     #Ri[seg_end[0], np.arange(n_edges)[0]] = 1
     #Ro[seg_start[0], np.arange(n_edges)[0]] = 1
+    print("n edges:",n_edges)
+    print("segment size:",len(seg_start))
     Ri[seg_end, np.arange(n_edges)] = 1
     Ro[seg_start, np.arange(n_edges)] = 1
     print("Ri shape:", Ri.shape)
@@ -164,7 +170,7 @@ def construct_graph(hits, layer_pairs,
     pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
     #pid1 = hits.isMuon.loc[segments.subentry_1].values
     #pid2 = hits.isMuon.loc[segments.subentry_2].values
-    y[:] = (pid1 == pid2) # & = 1
+    y[:] = (pid1 == pid2)  #& = 1
     print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
@@ -181,6 +187,7 @@ def construct_graphs(hits, layer_pairs,
     evt_hit_groups = hits.groupby('event_id')
     # Organize hits by event and barcode
     evt_barcode_hit_groups = hits.groupby(['event_id', 'entry'])
+    print(evt_barcode_hit_groups)
     evtids = hits.event_id.unique()
     if max_events is not None:
         evtids = evtids[:max_events]

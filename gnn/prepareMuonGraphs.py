@@ -28,11 +28,11 @@ def parse_args():
     add_arg('--input-pu-dir',
             default='/data/mliu/endcapmuons/singledata_pu200/')
     add_arg('--muononly',
-            default=True)
+            default=False)
     add_arg('--max-files',
             default=1)
     add_arg('--max-events',
-            default=3)
+            default=1)
     add_arg('--output-dir',
             default="./")
     return parser.parse_args()
@@ -84,8 +84,8 @@ def main():
     file_prefixes_pu = sorted(os.path.join(args.input_pu_dir, f.replace(suffix, ''))
                               for f in all_pu_files if f.endswith(suffix))
 
-    file_prefixes_muon = file_prefixes_muon[0:args.max_files]
-    file_prefixes_pu = file_prefixes_pu[0:args.max_files]
+    file_prefixes_muon = file_prefixes_muon[0:int(args.max_files)]
+    file_prefixes_pu = file_prefixes_pu[0:int(args.max_files)]
     print('\njust reading up to %i files'%args.max_files)
     print('\nmuon files:', file_prefixes_muon)
     print('\npu files:', file_prefixes_pu)
@@ -99,10 +99,10 @@ def main():
         upfile_muon = uproot.open(file_prefix_muon + '.root')
         upfile_pu = uproot.open(file_prefix_pu + '.root')
     
-        print('\ntree contents:')
+#        print('\ntree contents:')
         # open tree, list variables
         tree_muon = upfile_muon['ntupler']['tree']
-        tree_muon.show()
+#        tree_muon.show()
         tree_pu = upfile_pu['ntupler']['tree']
 
         # Enums
@@ -115,12 +115,12 @@ def main():
         nlayers = 12  # 5 (CSC) + 4 (RPC) + 3 (GEM)
     
         # get first max_events events and put it in dataframe
-        print('reading only %i events'%args.max_events)
+        print('reading only %i events'%int(args.max_events))
         df_muon = tree_muon.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
-                         'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=0, entrystop=args.max_events)
+                         'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=0, entrystop=int(args.max_events))
         # filtering out events with layer number which equals -99
         df_pu = tree_pu.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
-                                   'vh_type','vh_station','vh_ring'], entrystart=0, entrystop=args.max_events)
+                                   'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=0, entrystop=int(args.max_events))
 
         # get layer number from (vh_type, vh_station, vh_ring)
         df_muon['vh_layer'] = df_muon.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
@@ -133,12 +133,12 @@ def main():
     
         index_frame_muon = df_muon.index.to_frame()
         df_muon['event_id'] = index_frame_muon['entry']
-    
+#        print()) 
         index_frame_pu = df_pu.index.to_frame()
         df_pu['event_id'] = index_frame_pu['entry']
     
-        print('\nmuon events:', df_muon)
-        print('\npu events:', df_pu)
+#        print('\nmuon events (without removing duplicates):', df_muon)
+#        print('\npu events (without removing duplicates):', df_pu)
     
         # get only true muon hits (generator-level matching condition)!
         df_muon = df_muon[(df_muon['vh_sim_tp1']==0) & (df_muon['vh_sim_tp2']==0)]   
@@ -151,12 +151,18 @@ def main():
         for entry, new_df_muon in df_muon.groupby(level=0):
             new_df_muon = new_df_muon.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_muon.append(new_df_muon)
+            #print('new_df_muon',type(new_df_muon))
             # Count hits/muon
             hit = new_df_muon.shape[0]
             hits.append(hit)
         for entry_pu, new_df_pu in df_pu.groupby(level=0):
+            new_df_pu = new_df_pu.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_pu.append(new_df_pu)
+
             new_df_all = pd.concat([new_df_pu, frames_muon[entry_pu]]) 
+            #print("before reset:",new_df_all)
+#            new_df_all = new_df_all.reset_index()
+            #print("after reset:",new_df_all)
             frames_all.append(new_df_all)
             # Count number hits/layer
             for row in new_df_pu.itertuples():
@@ -164,7 +170,6 @@ def main():
                 hit_distr[layr] += 1   
     
         df_muon = pd.concat(frames_muon)
-    
         df_all = pd.concat(frames_all)
 
         hit_distr = [i/41 for i in hit_distr] # If 41 = entrystop
@@ -174,7 +179,7 @@ def main():
         n_det_layers = 12
         l = np.arange(n_det_layers)
         layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
-    
+        print(layer_pairs) 
         #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
         #n_phi_sectors = 1
         #feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
@@ -184,7 +189,10 @@ def main():
       
         df = df_all
         if args.muononly: df = df_muon
+        #print(df.index)
         for entry_all, new_df_all in df.groupby(level=0):
+            new_df_all = new_df_all.reset_index()
+            new_df_all['subentry'] = new_df_all.index
             graph = [construct_graph(new_df_all, layer_pairs=layer_pairs,
                                      feature_names=feature_names,
                                      feature_scale=feature_scale)]
