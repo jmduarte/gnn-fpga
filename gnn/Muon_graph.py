@@ -170,7 +170,10 @@ def construct_graph(hits, layer_pairs,
     pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
     #pid1 = hits.isMuon.loc[segments.subentry_1].values
     #pid2 = hits.isMuon.loc[segments.subentry_2].values
-    y[:] = (pid1 == pid2)  #& = 1
+    print(pid1)
+    print("---")
+    print(pid2)
+    y[:] = [i and j for i, j in zip(pid1, pid2)]
     print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
