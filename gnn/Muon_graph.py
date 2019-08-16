@@ -60,19 +60,19 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
 #    hits1.reset_index(drop=True, inplace=True)
 #    hits2.reset_index(drop=True, inplace=True)
     
-    print('HITS1:', hits1)
+#    print('HITS1:', hits1)
     #hits1.reset_index(drop=True, inplace=True)
-    print('HITS1 after reset index:', hits1)  
-    print('HITS2 keys:', hits2)
+#    print('HITS1 after reset index:', hits1)  
+#    print('HITS2 keys:', hits2)
     #print(hits1.reset_index(drop=True))
     hit_pairs = hits1.merge(
         hits2, on="entry",suffixes=('_1', '_2')) 
-    print('HIT PAIRS', hit_pairs)
+#    print('HIT PAIRS', hit_pairs)
     # Compute line through the points
     dphi = calc_dphi(hit_pairs.vh_sim_phi_1, hit_pairs.vh_sim_phi_2)
     dz = hit_pairs.vh_sim_z_2 - hit_pairs.vh_sim_z_1
     dr = hit_pairs.vh_sim_r_2 - hit_pairs.vh_sim_r_1
-    print('dr:', dr)
+#    print('dr:', dr)
     phi_slope = dphi / dr
     z0 = hit_pairs.vh_sim_z_1 - hit_pairs.vh_sim_r_1 * dz / dr
     #Filter segments according to criteria
@@ -101,12 +101,12 @@ def construct_segments(hits, layer_pairs):
             logging.info('SKIPPING empty layer: %s' % e)
             continue
         # Construct the segments
-        print("hits1",hits1)
-        print("hits2",hits2)
+        #print("hits1",hits1)
+        #print("hits2",hits2)
         segments.append(select_segments(hits1, hits2))
-    print("segments:",segments)
-    # Combine segments from all layer pairs
-    return pd.concat(segments)
+    #print("segments:",segments)
+    # Combine segments from all layer pairs    
+    return segments
 
 def construct_graph(hits, layer_pairs,
                     feature_names, feature_scale,
@@ -124,13 +124,17 @@ def construct_graph(hits, layer_pairs,
         hits = hits[hits['isMuon'].isin(sample_keys)]
 
     # Construct segments
-    segments = construct_segments(hits, layer_pairs)
-    print("segments:",segments) 
+    segs = construct_segments(hits, layer_pairs)
+    try:
+        segments = pd.concat(segs)
+    except:
+        logging.info('SKIPPING empty segments')
+        return
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
     #evtid = hits.evtid.unique()
     # Prepare the tensors
-    print('HITSX:', hits)
+    #print('HITSX:', hits)
     X = (hits[feature_names].values / feature_scale).astype(np.float32)
     Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
     Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
@@ -147,34 +151,34 @@ def construct_graph(hits, layer_pairs,
 #    print('segments.subentry_2', segments.subentry_2)
     seg_start = hit_idx.loc[segments.subentry_1].values
     seg_end = hit_idx.loc[segments.subentry_2].values
-    print("seg_start:",seg_start)
-    print("seg_end:",seg_end)
+    #print("seg_start:",seg_start)
+    #print("seg_end:",seg_end)
     # Now we can fill the association matrices.
     # Note that Ri maps hits onto their incoming edges,
     # which are actually segment endings.
-    print('HITS.INDEX', type(hits.index), hits.index)
+    #print('HITS.INDEX', type(hits.index), hits.index)
 #    print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
     #print('HIT_IDX', type(hit_idx), hit_idx)
     #Ri[seg_end[0], np.arange(n_edges)[0]] = 1
     #Ro[seg_start[0], np.arange(n_edges)[0]] = 1
-    print("n edges:",n_edges)
-    print("segment size:",len(seg_start))
+    #print("n edges:",n_edges)
+    #print("segment size:",len(seg_start))
     Ri[seg_end, np.arange(n_edges)] = 1
     Ro[seg_start, np.arange(n_edges)] = 1
-    print("Ri shape:", Ri.shape)
-    print("Ri matrix:", Ri)
-    print("Ro matrix:", Ro)
+    #print("Ri shape:", Ri.shape)
+    #print("Ri matrix:", Ri)
+    #print("Ro matrix:", Ro)
     # Fill the segment labels
     # PROBLEM HERE  
     pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
     pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
     #pid1 = hits.isMuon.loc[segments.subentry_1].values
     #pid2 = hits.isMuon.loc[segments.subentry_2].values
-    print(pid1)
-    print("---")
-    print(pid2)
+    #print(pid1)
+    #print("---")
+    #print(pid2)
     y[:] = [i and j for i, j in zip(pid1, pid2)]
-    print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
+    #print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
     return make_sparse_graph(X, Ri, Ro, y), segments  
@@ -190,7 +194,7 @@ def construct_graphs(hits, layer_pairs,
     evt_hit_groups = hits.groupby('event_id')
     # Organize hits by event and barcode
     evt_barcode_hit_groups = hits.groupby(['event_id', 'entry'])
-    print(evt_barcode_hit_groups)
+    #print(evt_barcode_hit_groups)
     evtids = hits.event_id.unique()
     if max_events is not None:
         evtids = evtids[:max_events]
@@ -216,7 +220,11 @@ def construct_graphs(hits, layer_pairs,
 
 def save_graph(graph, filename):
     """Write a single graph to an NPZ file archive"""
-    np.savez(filename, **graph[0]._asdict())
+    try:
+       np.savez(filename, **graph[0]._asdict())
+    except:
+       print("empty graph")
+       return
     #np.savez(filename, X=graph.X, Ri=graph.Ri, Ro=graph.Ro, y=graph.y)
 
 def save_graphs(graphs, filenames):
@@ -240,18 +248,14 @@ def draw_sample(X, Ri, Ro, y,
     # Prepare the figure
     fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
     cmap = plt.get_cmap(cmap)
-    print(np.rot90(Ri))
-    print(np.rot90(Ro))
-    print("input features:",find(np.rot90(Ri))) 
-    print("output features:", find(np.rot90(Ro)))
-    print('X:',X) 
-    print("X shape:",X.shape)
+    #print("input features:",find(np.rot90(Ri))) 
+    #print("output features:", find(np.rot90(Ro)))
+    #print('X:',X) 
+    #print("X shape:",X.shape)
     feats_o = X[find(np.rot90(Ri))[1]]
     feats_i = X[find(np.rot90(Ro))[1]]  
-    print("feats_o:",feats_o)
-    print(feats_o.shape)
-    print("feats_i:",feats_i)
-    print(feats_i.shape)
+    #print("feats_o:",feats_o)
+    #print("feats_i:",feats_i)
     
     if sim_list is None:    
         # Draw the hits (layer, theta, z)
