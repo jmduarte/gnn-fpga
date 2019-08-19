@@ -170,10 +170,11 @@ def construct_graph(hits, layer_pairs,
     #print("Ro matrix:", Ro)
     # Fill the segment labels
     # PROBLEM HERE  
-    pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
-    pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
-    #pid1 = hits.isMuon.loc[segments.subentry_1].values
-    #pid2 = hits.isMuon.loc[segments.subentry_2].values
+    #pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
+    #pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
+    
+    pid1 = hits.isMuon.loc[segments.subentry_1].values
+    pid2 = hits.isMuon.loc[segments.subentry_2].values
     #print(pid1)
     #print("---")
     #print(pid2)
