@@ -84,10 +84,10 @@ def main():
     # Find the input files
     all_muon_files = os.listdir(args.input_muon_dir)
     all_pu_files = os.listdir(args.input_pu_dir)
-    suffix = '.root'
-    file_prefixes_muon = sorted(os.path.join(args.input_muon_dir, f.replace(suffix, ''))
+    suffix = 'SingleMuon_Endcap.root'
+    file_prefixes_muon = sorted(os.path.join(args.input_muon_dir,f.replace(suffix, 'SingleMuon_Endcap'))
                                 for f in all_muon_files if f.endswith(suffix))
-    file_prefixes_pu = sorted(os.path.join(args.input_pu_dir, f.replace(suffix, ''))
+    file_prefixes_pu = sorted(os.path.join(args.input_pu_dir, f.replace(suffix, 'SingleNeutrino_PU200'))
                               for f in all_pu_files if f.endswith(suffix))
 
     file_prefixes_muon = file_prefixes_muon[0:int(args.max_files)]
@@ -133,14 +133,20 @@ def main():
         # get layer number from (vh_type, vh_station, vh_ring)
         df_muon['vh_layer'] = df_muon.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
         df_pu['vh_layer'] = df_pu.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
-        df_muon = df_muon[df_muon["vh_layer"]>=0]
-        df_pu = df_pu[df_pu["vh_layer"]>=0]
-        df_muon = df_muon[df_pu["vh_layer"]>=0]
-        df_pu = df_pu[df_muon["vh_layer"]>=0]
-        df_muon.reset_index(level=0)
+        
+        #nonempty = pd.concat([df_muon["vh_layer"], df_pu["vh_layer"]], axis=1)
+        #column_names = nonempty.columns.values
+        #column_names[1] = 'Changed'
+        #nonempty.columns = column_names
+     
+        df_muon = df_muon[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
+        df_pu = df_pu[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
+        
+        #print(df_pu["vh_layer"]>=0)  
         df_muon['isMuon'] = np.ones(len(df_muon))
         df_pu['isMuon'] = np.zeros(len(df_pu))
-        
+        print(len(df_muon)) 
+        print(len(df_pu)) 
         index_frame_muon = df_muon.index.to_frame()
         df_muon['event_id'] = index_frame_muon['entry']
         index_frame_pu = df_pu.index.to_frame()
@@ -155,7 +161,6 @@ def main():
         frames_all = []
         hits = []
         hit_distr = [0]*12
-
         for entry, new_df_muon in df_muon.groupby(level=0):
             new_df_muon = new_df_muon.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_muon.append(new_df_muon)
@@ -167,6 +172,10 @@ def main():
             new_df_pu = new_df_pu.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_pu.append(new_df_pu)
             entry_mu = pumap_index.index(entry_pu)
+            #print('mu size',len(hits))
+            #print('entry_mu',entry_mu)
+            #print('entry_pu',entry_pu)
+            if(entry_mu>=len(hits)): continue
             new_df_all = pd.concat([new_df_pu, frames_muon[entry_mu]]) 
             frames_all.append(new_df_all)
             # Count number hits/layer
