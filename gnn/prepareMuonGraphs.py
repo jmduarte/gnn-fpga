@@ -124,29 +124,21 @@ def main():
     
         # get first max_events events and put it in dataframe
         print('reading only %i events'%int(args.max_events))
-        df_muon = tree_muon.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
-                         'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=int(args.start), entrystop=int(args.end))
+        hit_features= ['vh_sim_z','vh_sim_theta','vh_sim_phi','vh_sim_r','vh_bend','vh_sim_tp1',
+                         'vh_sim_tp2','vh_station','vh_ring','vh_type']
+        df_muon = tree_muon.pandas.df(hit_features, entrystart=int(args.start), entrystop=int(args.end))
         # filtering out events with layer number which equals -99
-        df_pu = tree_pu.pandas.df(['vh_sim_r','vh_sim_phi','vh_sim_z','vh_sim_tp1','vh_sim_tp2',
-                                   'vh_type','vh_station','vh_ring','vh_sim_theta'], entrystart=int(args.start), entrystop=int(args.end))
-
+        df_pu = tree_pu.pandas.df(hit_features, entrystart=int(args.start), entrystop=int(args.end))
+        df_muon_vp = tree_muon.pandas.df(['vp_pt','vp_eta'], entrystart=int(args.start), entrystop=int(args.end))
         # get layer number from (vh_type, vh_station, vh_ring)
         df_muon['vh_layer'] = df_muon.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
         df_pu['vh_layer'] = df_pu.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
-        
-        #nonempty = pd.concat([df_muon["vh_layer"], df_pu["vh_layer"]], axis=1)
-        #column_names = nonempty.columns.values
-        #column_names[1] = 'Changed'
-        #nonempty.columns = column_names
-     
+        # skip events with -999 layer number
         df_muon = df_muon[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
         df_pu = df_pu[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
         
-        #print(df_pu["vh_layer"]>=0)  
         df_muon['isMuon'] = np.ones(len(df_muon))
         df_pu['isMuon'] = np.zeros(len(df_pu))
-        print(len(df_muon)) 
-        print(len(df_pu)) 
         index_frame_muon = df_muon.index.to_frame()
         df_muon['event_id'] = index_frame_muon['entry']
         index_frame_pu = df_pu.index.to_frame()
@@ -172,9 +164,6 @@ def main():
             new_df_pu = new_df_pu.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_pu.append(new_df_pu)
             entry_mu = pumap_index.index(entry_pu)
-            #print('mu size',len(hits))
-            #print('entry_mu',entry_mu)
-            #print('entry_pu',entry_pu)
             if(entry_mu>=len(hits)): continue
             new_df_all = pd.concat([new_df_pu, frames_muon[entry_mu]]) 
             frames_all.append(new_df_all)
@@ -195,13 +184,15 @@ def main():
         layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
         #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
         #n_phi_sectors = 1
-        #feature_scale = np.array([1000., np.pi / n_phi_sectors, 1000.])
-        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']
+#        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']
+        feature_names = hit_features
         n_phi_sectors = 6
-        feature_scale = np.array([1.,1 ,1 ,np.pi / n_phi_sectors, 1.])
-      
+        feature_scale = np.array([1]*len(feature_names))
+#        feature_scale = np.array([1.,1 ,1 ,np.pi / n_phi_sectors, 1.])
+
         df = df_all
         if args.muononly: df = df_muon
+        df_muon_vps = []
         for entry_all, new_df_all in df.groupby(level=0):
             new_df_all = new_df_all.reset_index()
             new_df_all['subentry'] = new_df_all.index
@@ -209,16 +200,23 @@ def main():
                                      feature_names=feature_names,
                                      feature_scale=feature_scale)]
             graphs.append(graph)
+            print(new_df_all['event_id'])
+            #print(new_df_all.iloc[int(args.start)]['event_id'])               
+            #print(int(new_df_all.iloc[int(args.start)]['event_id'])-int(args.start))
+            df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[0]['event_id'])-int(args.start)])
+#            df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[int(args.start)]['event_id'])])
         
         # Write outputs
         graphs = [g for gs in graphs for g in gs]
+      #  print(graphs)
+      #  print(df_muon_vps)
         if args.output_dir:
            os.system('mkdir -p %s'%args.output_dir)
            logging.info('Writing outputs to ' + args.output_dir)
         # Write out the graphs
         filenames = [os.path.join(args.output_dir, 'graph_'+file_prefix_muon.split('/')[-1]+'_%06i' % i)
                      for i in range(len(graphs))]
-        save_graphs(graphs, filenames)
+        save_graphs(graphs,df_muon_vps,filenames)
     return graphs
 
 if __name__ == '__main__':

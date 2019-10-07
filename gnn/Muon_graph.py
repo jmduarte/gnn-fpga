@@ -216,18 +216,18 @@ def construct_graphs(hits, layer_pairs,
     # Return the results
     return graphs
 
-def save_graph(graph, filename):
+def save_graph(graph,particle ,filename):
     """Write a single graph to an NPZ file archive"""
     try:
-       np.savez(filename, **graph[0]._asdict())
+       np.savez(filename, **graph[0]._asdict(),pt = particle.vp_pt,eta = particle.vp_eta)
     except:
        print("empty graph")
        return
     #np.savez(filename, X=graph.X, Ri=graph.Ri, Ro=graph.Ro, y=graph.y)
 
-def save_graphs(graphs, filenames):
-    for graph, filename in zip(graphs, filenames):
-        save_graph(graph, filename)
+def save_graphs(graphs, particles,filenames):
+    for graph, particle,filename in zip(graphs,particles, filenames):
+        save_graph(graph,particle ,filename)
 
 def load_graph(filename, graph_type=Graph):
     """Reade a single graph NPZ"""
