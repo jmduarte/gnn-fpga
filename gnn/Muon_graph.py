@@ -20,10 +20,9 @@ from scipy.spatial import cKDTree
 #feature_scale = np.array([1000., np.pi, 1000.])
 
 # Graph is a namedtuple of (X, Ri, Ro, y) for convenience
-Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y'])
+Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y','pt','eta'])
 # Sparse graph uses the indices for the Ri, Ro matrices
-SparseGraph = namedtuple('SparseGraph',
-        ['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y'])
+SparseGraph = namedtuple('SparseGraph',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y','pt','eta'])
 
 def make_sparse_graph(X, Ri, Ro, y):
     Ri_rows, Ri_cols = Ri.nonzero()
@@ -37,7 +36,7 @@ def graph_from_sparse(sparse_graph, dtype=np.uint8):
     Ro = np.zeros((n_nodes, n_edges), dtype=dtype)
     Ri[sparse_graph.Ri_rows, sparse_graph.Ri_cols] = 1
     Ro[sparse_graph.Ro_rows, sparse_graph.Ro_cols] = 1
-    return Graph(sparse_graph.X, Ri, Ro, sparse_graph.y)
+    return Graph(sparse_graph.X, Ri, Ro, sparse_graph.y, sparse_graph.pt, sparse_graph.eta)
 
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
@@ -286,4 +285,48 @@ def draw_sample(X, Ri, Ro, y,
     ax1.set_xlabel('$z$ [cm]')
     ax1.set_ylabel('$theta$')
     plt.tight_layout()
+    plt.savefig("graph.png")
 
+def draw_sample_withproperties(X, Ri, Ro, y, pt, eta, 
+                cmap='bwr_r', 
+                skip_false_edges=True,
+                alpha_labels=False, 
+                sim_list=None,outputname=None,output=None): 
+    # Select the i/o node features for each segment    
+    # Prepare the figure
+    fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
+    cmap = plt.get_cmap(cmap)
+    #print("input features:",find(np.rot90(Ri))) 
+    #print("output features:", find(np.rot90(Ro)))
+    #print("X shape:",X.shape)
+    feats_o = X[find(np.rot90(Ri))[1]]
+    feats_i = X[find(np.rot90(Ro))[1]]  
+    #print("feats_o:",feats_o)
+    #print("feats_i:",feats_i)
+    plt.title('Muon properties Pt: %f, Eta: %f'%(pt,eta) )    
+    if sim_list is None:    
+        # Draw the hits (layer, theta, z)
+        ax0.scatter(X[:,10], X[:,1], c='k')
+        ax1.scatter(X[:,0], X[:,10], c='k')
+    else:        
+        ax0.scatter(X[sim_list,0], X[sim_list,2], c='b')
+        ax1.scatter(X[sim_list,1], X[sim_list,2], c='b')
+    
+    # Draw the segments
+    for j in range(y.shape[0]):
+        if not y[j] and skip_false_edges: continue
+        if alpha_labels:
+            seg_args = dict(c='k', alpha=float(y[j]))
+        else:
+            seg_args = dict(c=cmap(float(y[j])))
+        ax0.plot([feats_o[j,10], feats_i[j,10]],
+                 [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
+        ax1.plot([feats_o[j,0], feats_i[j,0]],
+                 [feats_o[j,10],feats_i[j,10]], '-', **seg_args)
+    # Adjust axes
+    ax0.set_xlabel('$layer$ [arb]')
+    ax0.set_ylabel('$theta$')
+    ax1.set_xlabel('$z$ [cm]')
+    ax1.set_ylabel('$layer$ [arb]')
+    plt.tight_layout()
+    plt.savefig("myplots/%s/graph_%s.png"%(outputname,output) )
