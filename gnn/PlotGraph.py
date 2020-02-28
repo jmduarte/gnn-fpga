@@ -95,9 +95,9 @@ def plotgraphs(directory,outputname,ngraphs):
 
 ###########OPTIONS
 parser = argparse.ArgumentParser(description='Command line parser of skim options')
-parser.add_argument('--directory',    dest='directory',  help='Name of ntuples case', required = True)
-parser.add_argument('--outputname',    dest='outputname',  help='Name of ntuples case', required = True)
-parser.add_argument('--ngraphs',    dest='ngraphs',  help='Name of ntuples case', required = True)
+parser.add_argument('--directory',    dest='directory',  help='Name of directory with the graphs', required = True)
+parser.add_argument('--outputname',    dest='outputname',  help='Name of directory with the graphplots', required = True)
+parser.add_argument('--ngraphs',    dest='ngraphs',  help='Number of graphs to plot', required = True)
 parser.set_defaults(lepveto=False)
 args = parser.parse_args()
 directory       = args.directory
