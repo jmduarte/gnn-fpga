@@ -23,7 +23,7 @@ from scipy.spatial import cKDTree
 Graph           = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y'])
 # Sparse graph uses the indices for the Ri, Ro matrices
 SparseGraph     = namedtuple('SparseGraph',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y'])
-# Graph is a namedtuple of (X, Ri, Ro, y) for convenience
+# Graph is a namedtuple of (X, Ri, Ro, y) for convenience and gen properties
 GraphProp       = namedtuple('GraphProp', ['X', 'Ri', 'Ro', 'y','pt','eta'])
 # Sparse graph uses the indices for the Ri, Ro matrices and gen properties
 SparseGraphProp = namedtuple('SparseGraphProp',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y', 'pt', 'eta'])
