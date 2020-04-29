@@ -40,7 +40,7 @@ def graph_from_sparse(sparse_graph, dtype=np.uint8):
     Ro = np.zeros((n_nodes, n_edges), dtype=dtype)
     Ri[sparse_graph.Ri_rows, sparse_graph.Ri_cols] = 1
     Ro[sparse_graph.Ro_rows, sparse_graph.Ro_cols] = 1
-    return Graph(sparse_graph_prop.X, Ri, Ro, sparse_graph_prop.y)
+    return Graph(sparse_graph.X, Ri, Ro, sparse_graph.y)
 
 def graph_from_sparse_prop(sparse_graph_prop, dtype=np.uint8):
     n_nodes = sparse_graph_prop.X.shape[0]
