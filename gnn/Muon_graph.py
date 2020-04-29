@@ -20,9 +20,13 @@ from scipy.spatial import cKDTree
 #feature_scale = np.array([1000., np.pi, 1000.])
 
 # Graph is a namedtuple of (X, Ri, Ro, y) for convenience
-Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y','pt','eta'])
+Graph           = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y'])
 # Sparse graph uses the indices for the Ri, Ro matrices
-SparseGraph = namedtuple('SparseGraph',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y','pt','eta'])
+SparseGraph     = namedtuple('SparseGraph',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y'])
+# Graph is a namedtuple of (X, Ri, Ro, y) for convenience
+GraphProp       = namedtuple('GraphProp', ['X', 'Ri', 'Ro', 'y','pt','eta'])
+# Sparse graph uses the indices for the Ri, Ro matrices and gen properties
+SparseGraphProp = namedtuple('SparseGraphProp',['X', 'Ri_rows', 'Ri_cols', 'Ro_rows', 'Ro_cols', 'y', 'pt', 'eta'])
 
 def make_sparse_graph(X, Ri, Ro, y):
     Ri_rows, Ri_cols = Ri.nonzero()
@@ -36,7 +40,16 @@ def graph_from_sparse(sparse_graph, dtype=np.uint8):
     Ro = np.zeros((n_nodes, n_edges), dtype=dtype)
     Ri[sparse_graph.Ri_rows, sparse_graph.Ri_cols] = 1
     Ro[sparse_graph.Ro_rows, sparse_graph.Ro_cols] = 1
-    return Graph(sparse_graph.X, Ri, Ro, sparse_graph.y, sparse_graph.pt, sparse_graph.eta)
+    return Graph(sparse_graph_prop.X, Ri, Ro, sparse_graph_prop.y)
+
+def graph_from_sparse_prop(sparse_graph_prop, dtype=np.uint8):
+    n_nodes = sparse_graph_prop.X.shape[0]
+    n_edges = sparse_graph_prop.Ri_rows.shape[0]
+    Ri = np.zeros((n_nodes, n_edges), dtype=dtype)
+    Ro = np.zeros((n_nodes, n_edges), dtype=dtype)
+    Ri[sparse_graph_prop.Ri_rows, sparse_graph_prop.Ri_cols] = 1
+    Ro[sparse_graph_prop.Ro_rows, sparse_graph_prop.Ro_cols] = 1
+    return GraphProp(sparse_graph_prop.X, Ri, Ro, sparse_graph_prop.y, sparse_graph_prop.pt, sparse_graph_prop.eta)
 
 def calc_dphi(phi1, phi2):
     """Computes phi2-phi1 given in range [-pi,pi]"""
@@ -215,7 +228,7 @@ def construct_graphs(hits, layer_pairs,
     # Return the results
     return graphs
 
-def save_graph(graph,particle ,filename):
+def save_graph(graph, particle ,filename):
     """Write a single graph to an NPZ file archive"""
     try:
        np.savez(filename, **graph[0]._asdict(),pt = particle.vp_pt,eta = particle.vp_eta)
