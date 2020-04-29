@@ -209,9 +209,9 @@ def main():
         #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
         #n_phi_sectors = 1
 #        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']
-        feature_names = hit_features
+        hit_features.append('vh_layer')
         n_phi_sectors = 6
-        feature_scale = np.array([1]*len(feature_names))
+        feature_scale = np.array([1]*len(hit_features))
 #        feature_scale = np.array([1.,1 ,1 ,np.pi / n_phi_sectors, 1.])
 
         df = df_all
@@ -221,7 +221,7 @@ def main():
             new_df_all = new_df_all.reset_index()
             new_df_all['subentry'] = new_df_all.index
             graph = [construct_graph(new_df_all, layer_pairs=layer_pairs,
-                                     feature_names=feature_names,
+                                     feature_names=hit_features,
                                      feature_scale=feature_scale)]
             graphs.append(graph)
             print(new_df_all['event_id'])
