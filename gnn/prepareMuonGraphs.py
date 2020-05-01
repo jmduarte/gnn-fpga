@@ -8,17 +8,20 @@ input into the models.
 from __future__ import print_function
 from __future__ import division 
 
-import os
+import os,glob
 import logging
 import argparse
 import multiprocessing as mp
 from functools import partial
+from scipy.sparse import csr_matrix, find
 
 import numpy as np
 import pandas as pd
 import uproot
 
-from Muon_graph import construct_graph, save_graphs
+from Muon_graph import construct_graph, save_graphs,SparseGraphProp, load_graph,  \
+				  load_graph, graph_from_sparse_prop, \
+				  draw_sample_withproperties
 
 def parse_args():
     parser = argparse.ArgumentParser('prepareGraphs.py')
@@ -92,9 +95,32 @@ emtf_lut[3,2,1] = 6 # GE2/1
 emtf_lut[4,1,1] = 0 # ME0
 
 
-
+def column(matrix, i):
+    return [int(row[i]) for row in matrix]
 def get_layer(type, station, ring):
     return emtf_lut[int(type),int(station),int(ring)]
+def get_layers(types,stations,rings):
+	array = []
+	for i in range(0, len(types)):
+	    array.append([get_layer(types[i],stations[i],rings[i])]  )
+	return array
+def plotgraph(file,outputname,output):
+	g1sparse  = load_graph('%s'%file,graph_type=SparseGraphProp)
+	g1        = graph_from_sparse_prop(g1sparse)
+	layer     = get_layers(column(g1.X,9),column(g1.X,7),column(g1.X,8))
+	Xnew      = np.hstack((g1.X,layer))
+	findindex = find(np.rot90(g1.Ri))
+	x,y,z = findindex
+	#Here you can cut on the pt and eta of the generated muons and plot
+	if g1.pt>0 and abs(g1.eta)<2.4 and abs(g1.eta)>1.2:
+		draw_sample_withproperties(Xnew,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputname=outputname,output=output)
+
+def plotgraphs(inputdir):
+	outputdir = os.path.join(inputdir, "plots")
+	if not os.path.exists(outputdir): os.makedirs(outputdir)	
+	files = glob.glob("%s/*.npz"%inputdir)
+	for file in files: 
+		plotgraph(file,outputdir,files.index(file))
 
 def main():
     """Main program function"""
@@ -241,6 +267,7 @@ def main():
         filenames = [os.path.join(args.output_dir, 'graph_'+file_prefix_muon.split('/')[-1]+'_%06i' % i)
                      for i in range(len(graphs))]
         save_graphs(graphs,df_muon_vps,filenames)
+        plotgraphs(args.output_dir)
     return graphs
 
 if __name__ == '__main__':

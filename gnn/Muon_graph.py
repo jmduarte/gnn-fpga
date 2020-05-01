@@ -14,7 +14,6 @@ from scipy.sparse import csr_matrix, find
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import cKDTree
 
-
 # Global feature details
 #feature_names = ['r', 'phi', 'z']
 #feature_scale = np.array([1000., np.pi, 1000.])
@@ -307,6 +306,8 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
                 sim_list=None,outputname=None,output=None): 
     # Select the i/o node features for each segment    
     # Prepare the figure
+    plt.switch_backend('agg')
+
     fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
     cmap = plt.get_cmap(cmap)
     #print("input features:",find(np.rot90(Ri))) 
@@ -342,4 +343,5 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
     ax1.set_xlabel('$z$ [cm]')
     ax1.set_ylabel('$layer$ [arb]')
     plt.tight_layout()
-    plt.savefig("myplots/%s/graph_%s.png"%(outputname,output) )
+    #plt.show()
+    plt.savefig("%s/graph_%s.png"%(outputname,output) )
