@@ -103,11 +103,6 @@ def get_layers(types,stations,rings):
 def plotgraph(file,outputname,output):
 	g1sparse  = load_graph('%s'%file,graph_type=SparseGraphProp)
 	g1        = graph_from_sparse_prop(g1sparse)
-        #layer     = get_layers(column(g1.X,9),column(g1.X,7),column(g1.X,8))
-	#Xnew      = np.hstack((g1.X,layer))
-	#findindex = find(np.rot90(g1.Ri))
-	#x,y,z = findindex
-        #print(layer)
 	#Here you can cut on the pt and eta of the generated muons and plot
 	#if g1.pt>0 and abs(g1.eta)<2.4 and abs(g1.eta)>1.2:
 	draw_sample_withproperties(g1.X,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputname=outputname,output=output)
@@ -189,7 +184,9 @@ def main():
         df_muon['event_id'] = index_frame_muon['entry']
         index_frame_pu = df_pu.index.to_frame()
         df_pu['event_id'] = index_frame_pu['entry']
-    
+        # separate plus and minus
+        df_muon['vh_layer'] = np.multiply(df_muon['vh_layer'],np.sign(df_muon['vh_sim_z']))
+        df_pu['vh_layer'] = np.multiply(df_pu['vh_layer'],np.sign(df_pu['vh_sim_phi']))
         # get only true muon hits (generator-level matching condition)!
         df_muon = df_muon[(df_muon['vh_sim_tp1']==0) & (df_muon['vh_sim_tp2']==0)]   
         df_pu_group = df_pu.groupby(level=0)
@@ -220,21 +217,14 @@ def main():
     
         df_muon = pd.concat(frames_muon)
         df_all = pd.concat(frames_all)
-        #print(df_muon)
-        #print(df_all)
         hit_distr = [i/41 for i in hit_distr] # If 41 = entrystop
-        #print('hit distr:', hit_distr)       
         # Define adjacent layers
         l = np.array(list(set(df_all['vh_layer'])))
         n_det_layers = 12
         #l = np.arange(n_det_layers)
         layer_pairs  = np.stack([l[:-1], l[1:]], axis=1)
         print("layers in prepare muon graph")
-        #layer_pairs = 
-        print(layer_pairs)
-        #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
-        #n_phi_sectors = 1
-#        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']
+        # add layer to the features saved
         hit_features.append('vh_layer')
         n_phi_sectors = 6
         feature_scale = np.array([1]*len(hit_features))
@@ -255,11 +245,8 @@ def main():
             #print(int(new_df_all.iloc[int(args.start)]['event_id'])-int(args.start))
             df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[0]['event_id'])-int(args.start)])
 #            df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[int(args.start)]['event_id'])])
-        
         # Write outputs
         graphs = [g for gs in graphs for g in gs]
-      #  print(graphs)
-      #  print(df_muon_vps)
         if args.output_dir:
            os.system('mkdir -p %s'%args.output_dir)
            logging.info('Writing outputs to ' + args.output_dir)

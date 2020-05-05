@@ -148,9 +148,7 @@ def construct_graph(hits, layer_pairs,
         return
     n_hits = hits.shape[0]
     n_edges = segments.shape[0]
-    #evtid = hits.evtid.unique()
-    # Prepare the tensors
-    #print('HITSX:', hits)
+
     X = (hits[feature_names].values / feature_scale).astype(np.float32)
     Ri = np.zeros((n_hits,n_edges), dtype=np.uint8)
     Ro = np.zeros((n_hits,n_edges), dtype=np.uint8)
@@ -159,47 +157,14 @@ def construct_graph(hits, layer_pairs,
     # so we need to translate into positional indices.
     # Use a series to map hit label-index onto positional-index.
     # Get rid of multiindex in hits.index
-    #hits.index = hits.index.droplevel(level=0)
     hit_idx = pd.Series(np.arange(n_hits), index=hits.index)
-    #print("hits index:",hits.index)
-    #print("hit_idx:",hit_idx)
-#    print('segments.subentry_1', segments.subentry_1)
-#    print('segments.subentry_2', segments.subentry_2)
     seg_start = hit_idx.loc[segments.subentry_1].values
     seg_end = hit_idx.loc[segments.subentry_2].values
-    #print("seg_start:",seg_start)
-    #print("seg_end:",seg_end)
-    # Now we can fill the association matrices.
-    # Note that Ri maps hits onto their incoming edges,
-    # which are actually segment endings.
-    #print('HITS.INDEX', type(hits.index), hits.index)
-#    print('EDGES', np.arange(n_edges), 'RI',  Ri.shape)
-    #print('HIT_IDX', type(hit_idx), hit_idx)
-    #Ri[seg_end[0], np.arange(n_edges)[0]] = 1
-    #Ro[seg_start[0], np.arange(n_edges)[0]] = 1
-    #print("n edges:",n_edges)
-    #print("segment size:",len(seg_start))
     Ri[seg_end,np.arange(n_edges)] = 1
     Ro[seg_start,np.arange(n_edges)] = 1
-    print(Ri)
-    print(seg_end)
-    Ro[seg_start,np.arange(n_edges)] = 1
-    #print("Ri shape:", Ri.shape)
-    #print("Ri matrix:", Ri)
-    #print("Ro matrix:", Ro)
-    # Fill the segment labels
-    # PROBLEM HERE  
-    #pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
-    #pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
     pid1 = hits.isMuon.loc[segments.subentry_1].values
     pid2 = hits.isMuon.loc[segments.subentry_2].values
-    print(X.shape)
-    print(pid1)
-    print(pid2)
-    print(Ri.shape)
-    print(Ro.shape)
     y[:] = [i and j for i, j in zip(pid1, pid2)]
-    print(y.shape)
     #print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
@@ -300,10 +265,6 @@ def draw_sample(X, Ri, Ro, y,
                  [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
         ax1.plot([feats_o[j,0], feats_i[j,0]],
                  [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
-        #ax0.plot([feats_o[0,0], feats_i[0,0]],
-        #         [feats_o[0,2], feats_i[0,2]], '-', **seg_args)
-        #ax1.plot([feats_o[0,1], feats_i[0,1]],
-        #         [feats_o[0,2], feats_i[0,2]], '-', **seg_args)
     # Adjust axes
     ax0.set_xlabel('$layer$ [arb]')
     ax0.set_ylabel('$theta$')
@@ -320,20 +281,12 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
     # Select the i/o node features for each segment    
     # Prepare the figure
     plt.switch_backend('agg')
-    #print("saved grah")
-    #print(X[:,-1])
+
     fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
     cmap = plt.get_cmap(cmap)
     # find(Ro)[1] gives the right indices of nodes which make up edges
     feats_idx_i = find(Ro)[1]
     feats_idx_o = find(Ri)[1]
-    print(find(Ri))
-    print(Ri)
-    #print(find(Ro))
-    #print(feats_o[0])
-    #print(feats_o[0])
-    #print("feats_o:",feats_o)
-    #print("feats_i:",feats_i)
     plt.title('Muon properties Pt: %f, Eta: %f'%(pt,eta) )    
     if sim_list is None:    
         # Draw the hits (layer, theta, z)
@@ -350,20 +303,14 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
             seg_args = dict(c='k', alpha=float(y[j]))
         else:
             seg_args = dict(c=cmap(float(y[j])))
-        print(j)
-        print(np.nonzero(Ri[:,j]))
-        print(np.nonzero(Ro[:,j]))
+
         feats_i = np.squeeze((X[np.nonzero(Ri[:,j])]))
         feats_o = np.squeeze((X[np.nonzero(Ro[:,j])]))
-        print(feats_i)
         ax0.plot([feats_o[-1], feats_i[-1]],
                  [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
         ax1.plot([feats_o[0], feats_i[0]],
                  [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
- #       ax0.plot([feats_o[j,-1], feats_i[j,-1]],
- #                [feats_o[j,3],feats_i[j,3]], '-', color = colors[int(y[j])])
- #       ax1.plot([feats_o[j,0], feats_i[j,0]],
- #                [feats_o[j,3],feats_i[j,3]], '-', color = colors[int(y[j])])
+
     # Adjust axes
     ax0.set_xlabel('$layer$ [arb]')
     ax0.set_ylabel('$theta$')
