@@ -46,8 +46,6 @@ def parse_args():
             default="./")
     return parser.parse_args()
 
-
-
 # Decide EMTF hit layer number
 emtf_lut = np.zeros((5,5,5), dtype=np.int32) - 99
 #### emtf_lut[1,1,4] = 0  # ME1/1a
@@ -71,7 +69,6 @@ emtf_lut = np.zeros((5,5,5), dtype=np.int32) - 99
 #### emtf_lut[3,1,1] = 9  # GE1/1
 #### emtf_lut[3,2,1] = 10 # GE2/1
 #### emtf_lut[4,1,1] = 11 # ME0
-
 emtf_lut[1,1,4] = 2  # ME1/1a
 emtf_lut[1,1,1] = 2  # ME1/1b
 emtf_lut[1,1,2] = 3  # ME1/2
@@ -94,7 +91,6 @@ emtf_lut[3,1,1] = 1  # GE1/1
 emtf_lut[3,2,1] = 6 # GE2/1
 emtf_lut[4,1,1] = 0 # ME0
 
-
 def column(matrix, i):
     return [int(row[i]) for row in matrix]
 def get_layer(type, station, ring):
@@ -107,13 +103,14 @@ def get_layers(types,stations,rings):
 def plotgraph(file,outputname,output):
 	g1sparse  = load_graph('%s'%file,graph_type=SparseGraphProp)
 	g1        = graph_from_sparse_prop(g1sparse)
-	layer     = get_layers(column(g1.X,9),column(g1.X,7),column(g1.X,8))
-	Xnew      = np.hstack((g1.X,layer))
-	findindex = find(np.rot90(g1.Ri))
-	x,y,z = findindex
+        #layer     = get_layers(column(g1.X,9),column(g1.X,7),column(g1.X,8))
+	#Xnew      = np.hstack((g1.X,layer))
+	#findindex = find(np.rot90(g1.Ri))
+	#x,y,z = findindex
+        #print(layer)
 	#Here you can cut on the pt and eta of the generated muons and plot
-	if g1.pt>0 and abs(g1.eta)<2.4 and abs(g1.eta)>1.2:
-		draw_sample_withproperties(Xnew,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputname=outputname,output=output)
+	#if g1.pt>0 and abs(g1.eta)<2.4 and abs(g1.eta)>1.2:
+	draw_sample_withproperties(g1.X,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputname=outputname,output=output)
 
 def plotgraphs(inputdir):
 	outputdir = os.path.join(inputdir, "plots")
@@ -177,15 +174,14 @@ def main():
         hit_features= ['vh_sim_z','vh_sim_theta','vh_sim_phi','vh_sim_r','vh_bend','vh_sim_tp1',
                          'vh_sim_tp2','vh_station','vh_ring','vh_type']
         df_muon = tree_muon.pandas.df(hit_features, entrystart=int(args.start), entrystop=int(args.end))
-        # filtering out events with layer number which equals -99
         df_pu = tree_pu.pandas.df(hit_features, entrystart=int(args.start), entrystop=int(args.end))
         df_muon_vp = tree_muon.pandas.df(['vp_pt','vp_eta'], entrystart=int(args.start), entrystop=int(args.end))
         # get layer number from (vh_type, vh_station, vh_ring)
         df_muon['vh_layer'] = df_muon.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
         df_pu['vh_layer'] = df_pu.apply(lambda row: get_layer(row['vh_type'], row['vh_station'], row['vh_ring']), axis=1)
-        # skip events with -999 layer number
-        df_muon = df_muon[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
-        df_pu = df_pu[(df_pu["vh_layer"]>=0) & (df_muon["vh_layer"]>=0)]
+        # filtering out events with layer number which equals -99
+        df_muon = df_muon[(df_pu["vh_layer"]>-99) & (df_muon["vh_layer"]>-99)]
+        df_pu = df_pu[(df_pu["vh_layer"]>-99) & (df_muon["vh_layer"]> -99)]
         
         df_muon['isMuon'] = np.ones(len(df_muon))
         df_pu['isMuon'] = np.zeros(len(df_pu))
@@ -220,18 +216,22 @@ def main():
             # Count number hits/layer
             for row in new_df_pu.itertuples():
                 layr = getattr(row, "vh_layer") 
-                hit_distr[layr] += 1   
+                #hit_distr[layr] += 1   
     
         df_muon = pd.concat(frames_muon)
         df_all = pd.concat(frames_all)
-
+        #print(df_muon)
+        #print(df_all)
         hit_distr = [i/41 for i in hit_distr] # If 41 = entrystop
-        print('hit distr:', hit_distr)
-        
+        #print('hit distr:', hit_distr)       
         # Define adjacent layers
+        l = np.array(list(set(df_all['vh_layer'])))
         n_det_layers = 12
-        l = np.arange(n_det_layers)
-        layer_pairs = np.stack([l[:-1], l[1:]], axis=1)
+        #l = np.arange(n_det_layers)
+        layer_pairs  = np.stack([l[:-1], l[1:]], axis=1)
+        print("layers in prepare muon graph")
+        #layer_pairs = 
+        print(layer_pairs)
         #feature_names = ['vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
         #n_phi_sectors = 1
 #        feature_names = ['vh_sim_z', 'vh_sim_theta','vh_layer' ,'vh_sim_phi','vh_sim_r']

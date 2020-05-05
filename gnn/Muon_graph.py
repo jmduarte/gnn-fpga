@@ -101,6 +101,11 @@ def construct_segments(hits, layer_pairs):
     # Loop over layer pairs and construct segments
     layer_groups = hits.groupby('vh_layer')
     segments = []
+    print("hits:")
+    print(hits)
+    print("layers")
+    print(layer_pairs)
+
     for (layer1, layer2) in layer_pairs:
         # Find and join all hit pairs
         try: 
@@ -112,8 +117,8 @@ def construct_segments(hits, layer_pairs):
             logging.info('SKIPPING empty layer: %s' % e)
             continue
         # Construct the segments
-        #print("hits1",hits1)
-        #print("hits2",hits2)
+       # print("hits1",hits1)
+       # print("hits2",hits2)
         segments.append(select_segments(hits1, hits2))
     #print("segments:",segments)
     # Combine segments from all layer pairs    
@@ -147,8 +152,8 @@ def construct_graph(hits, layer_pairs,
     # Prepare the tensors
     #print('HITSX:', hits)
     X = (hits[feature_names].values / feature_scale).astype(np.float32)
-    Ri = np.zeros((n_hits, n_edges), dtype=np.uint8)
-    Ro = np.zeros((n_hits, n_edges), dtype=np.uint8)
+    Ri = np.zeros((n_hits,n_edges), dtype=np.uint8)
+    Ro = np.zeros((n_hits,n_edges), dtype=np.uint8)
     y = np.zeros(n_edges, dtype=np.float32)
     # We have the segments' hits given by dataframe label,
     # so we need to translate into positional indices.
@@ -174,8 +179,11 @@ def construct_graph(hits, layer_pairs,
     #Ro[seg_start[0], np.arange(n_edges)[0]] = 1
     #print("n edges:",n_edges)
     #print("segment size:",len(seg_start))
-    Ri[seg_end, np.arange(n_edges)] = 1
-    Ro[seg_start, np.arange(n_edges)] = 1
+    Ri[seg_end,np.arange(n_edges)] = 1
+    Ro[seg_start,np.arange(n_edges)] = 1
+    print(Ri)
+    print(seg_end)
+    Ro[seg_start,np.arange(n_edges)] = 1
     #print("Ri shape:", Ri.shape)
     #print("Ri matrix:", Ri)
     #print("Ro matrix:", Ro)
@@ -183,10 +191,15 @@ def construct_graph(hits, layer_pairs,
     # PROBLEM HERE  
     #pid1 = hits.isMuon.loc[segments.subentry_1.squeeze()].values
     #pid2 = hits.isMuon.loc[segments.subentry_2.squeeze()].values
-    
     pid1 = hits.isMuon.loc[segments.subentry_1].values
     pid2 = hits.isMuon.loc[segments.subentry_2].values
+    print(X.shape)
+    print(pid1)
+    print(pid2)
+    print(Ri.shape)
+    print(Ro.shape)
     y[:] = [i and j for i, j in zip(pid1, pid2)]
+    print(y.shape)
     #print('PID1', hits.isMuon.loc[segments.subentry_1], 'Y:', y)
     # Return a tuple of the results
     #print("X:", X.shape, ", Ri:", Ri.shape, ", Ro:", Ro.shape, ", y:", y.shape)
@@ -300,32 +313,36 @@ def draw_sample(X, Ri, Ro, y,
     plt.savefig("graph.png")
 
 def draw_sample_withproperties(X, Ri, Ro, y, pt, eta, 
-                cmap='bwr_r', 
-                skip_false_edges=True,
+                cmap='RdYlBu', 
+                skip_false_edges=False,
                 alpha_labels=False, 
                 sim_list=None,outputname=None,output=None): 
     # Select the i/o node features for each segment    
     # Prepare the figure
     plt.switch_backend('agg')
-
+    #print("saved grah")
+    #print(X[:,-1])
     fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
     cmap = plt.get_cmap(cmap)
-    #print("input features:",find(np.rot90(Ri))) 
-    #print("output features:", find(np.rot90(Ro)))
-    #print("X shape:",X.shape)
-    feats_o = X[find(np.rot90(Ri))[1]]
-    feats_i = X[find(np.rot90(Ro))[1]]  
+    # find(Ro)[1] gives the right indices of nodes which make up edges
+    feats_idx_i = find(Ro)[1]
+    feats_idx_o = find(Ri)[1]
+    print(find(Ri))
+    print(Ri)
+    #print(find(Ro))
+    #print(feats_o[0])
+    #print(feats_o[0])
     #print("feats_o:",feats_o)
     #print("feats_i:",feats_i)
     plt.title('Muon properties Pt: %f, Eta: %f'%(pt,eta) )    
     if sim_list is None:    
         # Draw the hits (layer, theta, z)
-        ax0.scatter(X[:,10], X[:,1], c='k')
-        ax1.scatter(X[:,0], X[:,10], c='k')
+        ax0.scatter(X[:,-1], X[:,3], c='k')
+        ax1.scatter(X[:,0], X[:,3], c='k')
     else:        
         ax0.scatter(X[sim_list,0], X[sim_list,2], c='b')
         ax1.scatter(X[sim_list,1], X[sim_list,2], c='b')
-    
+    colors = ['red','blue']
     # Draw the segments
     for j in range(y.shape[0]):
         if not y[j] and skip_false_edges: continue
@@ -333,10 +350,20 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
             seg_args = dict(c='k', alpha=float(y[j]))
         else:
             seg_args = dict(c=cmap(float(y[j])))
-        ax0.plot([feats_o[j,10], feats_i[j,10]],
-                 [feats_o[j,1],feats_i[j,1]], '-', **seg_args)
-        ax1.plot([feats_o[j,0], feats_i[j,0]],
-                 [feats_o[j,10],feats_i[j,10]], '-', **seg_args)
+        print(j)
+        print(np.nonzero(Ri[:,j]))
+        print(np.nonzero(Ro[:,j]))
+        feats_i = np.squeeze((X[np.nonzero(Ri[:,j])]))
+        feats_o = np.squeeze((X[np.nonzero(Ro[:,j])]))
+        print(feats_i)
+        ax0.plot([feats_o[-1], feats_i[-1]],
+                 [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
+        ax1.plot([feats_o[0], feats_i[0]],
+                 [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
+ #       ax0.plot([feats_o[j,-1], feats_i[j,-1]],
+ #                [feats_o[j,3],feats_i[j,3]], '-', color = colors[int(y[j])])
+ #       ax1.plot([feats_o[j,0], feats_i[j,0]],
+ #                [feats_o[j,3],feats_i[j,3]], '-', color = colors[int(y[j])])
     # Adjust axes
     ax0.set_xlabel('$layer$ [arb]')
     ax0.set_ylabel('$theta$')
