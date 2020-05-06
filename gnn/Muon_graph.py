@@ -5,7 +5,7 @@ This module contains the functionality to construct and work with hit graphs.
 import logging
 
 from collections import namedtuple
-
+import os
 import numpy as np
 import pandas as pd
 import math
@@ -117,8 +117,6 @@ def construct_segments(hits, layer_pairs):
             logging.info('SKIPPING empty layer: %s' % e)
             continue
         # Construct the segments
-       # print("hits1",hits1)
-       # print("hits2",hits2)
         segments.append(select_segments(hits1, hits2))
     #print("segments:",segments)
     # Combine segments from all layer pairs    
@@ -277,17 +275,16 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
                 cmap='RdYlBu', 
                 skip_false_edges=False,
                 alpha_labels=False, 
-                sim_list=None,outputname=None,output=None): 
+                sim_list=None,outputdir='/data/mliu/tmp',output='test'): 
     # Select the i/o node features for each segment    
     # Prepare the figure
     plt.switch_backend('agg')
-
     fig, (ax0,ax1) = plt.subplots(1, 2, figsize=(20,12))
     cmap = plt.get_cmap(cmap)
     # find(Ro)[1] gives the right indices of nodes which make up edges
-    feats_idx_i = find(Ro)[1]
-    feats_idx_o = find(Ri)[1]
-    plt.title('Muon properties Pt: %f, Eta: %f'%(pt,eta) )    
+    #feats_idx_i = find(Ro)[1]
+    #feats_idx_o = find(Ri)[1] # these indices are not correct (sorted per row)
+    plt.title('Muon properties Pt: %f, Eta: %f, from file %s'%(pt,eta,output) )    
     if sim_list is None:    
         # Draw the hits (layer, theta, z)
         ax0.scatter(X[:,-1], X[:,3], c='k')
@@ -303,19 +300,24 @@ def draw_sample_withproperties(X, Ri, Ro, y, pt, eta,
             seg_args = dict(c='k', alpha=float(y[j]))
         else:
             seg_args = dict(c=cmap(float(y[j])))
-
         feats_i = np.squeeze((X[np.nonzero(Ri[:,j])]))
         feats_o = np.squeeze((X[np.nonzero(Ro[:,j])]))
+        #feats_i = np.squeeze((X[feats_idx_i[j]]))
+        #feats_o = np.squeeze((X[feats_idx_o[j]]))
+
+        ax0.text(0.1, 0.1, 'why?')
         ax0.plot([feats_o[-1], feats_i[-1]],
                  [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
         ax1.plot([feats_o[0], feats_i[0]],
                  [feats_o[3],feats_i[3]], '-', color = colors[int(y[j])])
+        ax1.text(0.1, 0.1, 'why?')
 
     # Adjust axes
     ax0.set_xlabel('$layer$ [arb]')
-    ax0.set_ylabel('$theta$')
+    ax0.set_ylabel('$r$')
     ax1.set_xlabel('$z$ [cm]')
-    ax1.set_ylabel('$layer$ [arb]')
+    ax1.set_ylabel('$r$')
     plt.tight_layout()
     #plt.show()
-    plt.savefig("%s/graph_%s.png"%(outputname,output) )
+    if not os.path.exists(outputdir): os.makedirs(outputdir)
+    plt.savefig("%s/graph_%s.png"%(outputdir,output) )

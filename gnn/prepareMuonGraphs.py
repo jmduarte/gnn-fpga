@@ -69,27 +69,27 @@ emtf_lut = np.zeros((5,5,5), dtype=np.int32) - 99
 #### emtf_lut[3,1,1] = 9  # GE1/1
 #### emtf_lut[3,2,1] = 10 # GE2/1
 #### emtf_lut[4,1,1] = 11 # ME0
-emtf_lut[1,1,4] = 2  # ME1/1a
-emtf_lut[1,1,1] = 2  # ME1/1b
-emtf_lut[1,1,2] = 3  # ME1/2
-emtf_lut[1,1,3] = 3  # ME1/3
-emtf_lut[1,2,1] = 7  # ME2/1
-emtf_lut[1,2,2] = 7  # ME2/2
-emtf_lut[1,3,1] = 8  # ME3/1
-emtf_lut[1,3,2] = 8  # ME3/2
-emtf_lut[1,4,1] = 10  # ME4/1
-emtf_lut[1,4,2] = 10  # ME4/2
-emtf_lut[2,1,2] = 4  # RE1/2
-emtf_lut[2,2,2] = 5  # RE2/2
-emtf_lut[2,3,1] = 9  # RE3/1
-emtf_lut[2,3,2] = 9  # RE3/2
-emtf_lut[2,3,3] = 9  # RE3/3
-emtf_lut[2,4,1] = 11  # RE4/1
-emtf_lut[2,4,2] = 11  # RE4/2
-emtf_lut[2,4,3] = 11  # RE4/3
-emtf_lut[3,1,1] = 1  # GE1/1
-emtf_lut[3,2,1] = 6 # GE2/1
-emtf_lut[4,1,1] = 0 # ME0
+emtf_lut[1,1,4] = 3  # ME1/1a
+emtf_lut[1,1,1] = 3  # ME1/1b
+emtf_lut[1,1,2] = 4  # ME1/2
+emtf_lut[1,1,3] = 4  # ME1/3
+emtf_lut[1,2,1] = 8  # ME2/1
+emtf_lut[1,2,2] = 8  # ME2/2
+emtf_lut[1,3,1] = 9  # ME3/1
+emtf_lut[1,3,2] = 9  # ME3/2
+emtf_lut[1,4,1] = 11  # ME4/1
+emtf_lut[1,4,2] = 11  # ME4/2
+emtf_lut[2,1,2] = 5  # RE1/2
+emtf_lut[2,2,2] = 6  # RE2/2
+emtf_lut[2,3,1] = 10  # RE3/1
+emtf_lut[2,3,2] = 10  # RE3/2
+emtf_lut[2,3,3] = 10  # RE3/3
+emtf_lut[2,4,1] = 12  # RE4/1
+emtf_lut[2,4,2] = 12  # RE4/2
+emtf_lut[2,4,3] = 12  # RE4/3
+emtf_lut[3,1,1] = 2  # GE1/1
+emtf_lut[3,2,1] = 7 # GE2/1
+emtf_lut[4,1,1] = 1 # ME0
 
 def column(matrix, i):
     return [int(row[i]) for row in matrix]
@@ -105,14 +105,14 @@ def plotgraph(file,outputname,output):
 	g1        = graph_from_sparse_prop(g1sparse)
 	#Here you can cut on the pt and eta of the generated muons and plot
 	#if g1.pt>0 and abs(g1.eta)<2.4 and abs(g1.eta)>1.2:
-	draw_sample_withproperties(g1.X,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputname=outputname,output=output)
+	draw_sample_withproperties(g1.X,g1.Ri,g1.Ro,g1.y,g1.pt,g1.eta,skip_false_edges=False,outputdir=outputname,output=output)
 
 def plotgraphs(inputdir):
 	outputdir = os.path.join(inputdir, "plots")
 	if not os.path.exists(outputdir): os.makedirs(outputdir)	
 	files = glob.glob("%s/*.npz"%inputdir)
 	for file in files: 
-		plotgraph(file,outputdir,files.index(file))
+		plotgraph(file,outputdir,str(file.strip().split('/')[-1]).replace('.npz',''))
 
 def main():
     """Main program function"""
@@ -185,8 +185,9 @@ def main():
         index_frame_pu = df_pu.index.to_frame()
         df_pu['event_id'] = index_frame_pu['entry']
         # separate plus and minus
+        #print(df_muon['vh_layer'])
         df_muon['vh_layer'] = np.multiply(df_muon['vh_layer'],np.sign(df_muon['vh_sim_z']))
-        df_pu['vh_layer'] = np.multiply(df_pu['vh_layer'],np.sign(df_pu['vh_sim_phi']))
+        df_pu['vh_layer'] = np.multiply(df_pu['vh_layer'],np.sign(df_pu['vh_sim_z']))
         # get only true muon hits (generator-level matching condition)!
         df_muon = df_muon[(df_muon['vh_sim_tp1']==0) & (df_muon['vh_sim_tp2']==0)]   
         df_pu_group = df_pu.groupby(level=0)
@@ -196,55 +197,55 @@ def main():
         frames_all = []
         hits = []
         hit_distr = [0]*12
+        # fill in muon hits 
         for entry, new_df_muon in df_muon.groupby(level=0):
             new_df_muon = new_df_muon.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_muon.append(new_df_muon)
             # Count hits/muon
             hit = new_df_muon.shape[0]
             hits.append(hit)
-
+        # mixing pu hits in
         for entry_pu, new_df_pu in df_pu.groupby(level=0):
             new_df_pu = new_df_pu.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_pu.append(new_df_pu)
-            entry_mu = pumap_index.index(entry_pu)
-            if(entry_mu>=len(hits)): continue
+            try:
+                entry_mu = pumap_index.index(entry_pu)
+            except: 
+                logging.info('no more PU events to mix')
+            #return
             new_df_all = pd.concat([new_df_pu, frames_muon[entry_mu]]) 
             frames_all.append(new_df_all)
             # Count number hits/layer
-            for row in new_df_pu.itertuples():
-                layr = getattr(row, "vh_layer") 
+            # for row in new_df_pu.itertuples():
+                #layr = getattr(row, "vh_layer") 
                 #hit_distr[layr] += 1   
-    
         df_muon = pd.concat(frames_muon)
         df_all = pd.concat(frames_all)
         hit_distr = [i/41 for i in hit_distr] # If 41 = entrystop
-        # Define adjacent layers
-        l = np.array(list(set(df_all['vh_layer'])))
-        n_det_layers = 12
-        #l = np.arange(n_det_layers)
-        layer_pairs  = np.stack([l[:-1], l[1:]], axis=1)
-        print("layers in prepare muon graph")
+        # layers in prepare muon graph
         # add layer to the features saved
         hit_features.append('vh_layer')
         n_phi_sectors = 6
         feature_scale = np.array([1]*len(hit_features))
 #        feature_scale = np.array([1.,1 ,1 ,np.pi / n_phi_sectors, 1.])
-
         df = df_all
         if args.muononly: df = df_muon
         df_muon_vps = []
         for entry_all, new_df_all in df.groupby(level=0):
+            # Define 'adjacent' layers for each new event
+            l = list(set(new_df_all['vh_layer']))
+            l_plusZ = np.array(list(filter((0.0).__lt__,l)))
+            l_minusZ =np.array(list(filter((0.0).__gt__,l)))
+            layer_pairs_plus  = np.stack([l_plusZ[:-1], l_plusZ[1:]], axis=1)
+            layer_pairs_minus  = np.stack([l_minusZ[1:], l_minusZ[:-1]], axis=1)
+            layer_pairs = np.concatenate((layer_pairs_plus,layer_pairs_minus),axis=0)
             new_df_all = new_df_all.reset_index()
             new_df_all['subentry'] = new_df_all.index
             graph = [construct_graph(new_df_all, layer_pairs=layer_pairs,
                                      feature_names=hit_features,
                                      feature_scale=feature_scale)]
             graphs.append(graph)
-            print(new_df_all['event_id'])
-            #print(new_df_all.iloc[int(args.start)]['event_id'])               
-            #print(int(new_df_all.iloc[int(args.start)]['event_id'])-int(args.start))
             df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[0]['event_id'])-int(args.start)])
-#            df_muon_vps.append(df_muon_vp.iloc[int(new_df_all.iloc[int(args.start)]['event_id'])])
         # Write outputs
         graphs = [g for gs in graphs for g in gs]
         if args.output_dir:
