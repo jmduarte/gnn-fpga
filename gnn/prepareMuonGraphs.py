@@ -208,10 +208,8 @@ def main():
         for entry_pu, new_df_pu in df_pu.groupby(level=0):
             new_df_pu = new_df_pu.drop_duplicates(['vh_type','vh_station','vh_ring'])
             frames_pu.append(new_df_pu)
-            try:
-                entry_mu = pumap_index.index(entry_pu)
-            except: 
-                logging.info('no more PU events to mix')
+            entry_mu = pumap_index.index(entry_pu)
+            if(entry_mu>=len(hits)): continue
             #return
             new_df_all = pd.concat([new_df_pu, frames_muon[entry_mu]]) 
             frames_all.append(new_df_all)
@@ -237,8 +235,16 @@ def main():
             l_plusZ = np.array(list(filter((0.0).__lt__,l)))
             l_minusZ =np.array(list(filter((0.0).__gt__,l)))
             layer_pairs_plus  = np.stack([l_plusZ[:-1], l_plusZ[1:]], axis=1)
+            layer_pairs_plus_one = np.stack([l_plusZ[:-2], l_plusZ[2:]], axis=1)
+            layer_pairs_plus_two = np.stack([l_plusZ[:-3], l_plusZ[3:]], axis=1)
             layer_pairs_minus  = np.stack([l_minusZ[1:], l_minusZ[:-1]], axis=1)
+            layer_pairs_minus_one  = np.stack([l_minusZ[2:], l_minusZ[:-2]], axis=1)
+            layer_pairs_minus_two  = np.stack([l_minusZ[3:], l_minusZ[:-3]], axis=1)
+
+           # layer_pairs = np.concatenate((layer_pairs_plus,layer_pairs_minus,layer_pairs_minus_one, layer_pairs_minus_two,layer_pairs_plus_one,layer_pairs_plus_two),axis=0)
+           # layer_pairs = np.concatenate((layer_pairs_plus,layer_pairs_minus,layer_pairs_minus_one,layer_pairs_plus_one),axis=0)
             layer_pairs = np.concatenate((layer_pairs_plus,layer_pairs_minus),axis=0)
+
             new_df_all = new_df_all.reset_index()
             new_df_all['subentry'] = new_df_all.index
             graph = [construct_graph(new_df_all, layer_pairs=layer_pairs,

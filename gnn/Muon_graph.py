@@ -68,14 +68,6 @@ def select_segments(hits1, hits2, phi_slope_max=10e30, phi_slope_mid_max=10e30, 
     """
     # Start with all possible pairs of hits
     keys = ['event_id', 'vh_layer', 'vh_sim_r', 'vh_sim_phi', 'vh_sim_z']
-#    hits1.reset_index(drop=True, inplace=True)
-#    hits2.reset_index(drop=True, inplace=True)
-    
-#    print('HITS1:', hits1)
-    #hits1.reset_index(drop=True, inplace=True)
-#    print('HITS1 after reset index:', hits1)  
-#    print('HITS2 keys:', hits2)
-    #print(hits1.reset_index(drop=True))
     hit_pairs = hits1.merge(
         hits2, on="entry",suffixes=('_1', '_2')) 
 #    print('HIT PAIRS', hit_pairs)
